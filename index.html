@@ -258,6 +258,14 @@ const PROCESSES = [
   { key: "기타",         color: "var(--s7)" },
 ];
 const procColor = p => (PROCESSES.find(x => x.key === p) || PROCESSES[PROCESSES.length-1]).color;
+const MTYPES = [
+  { key: "CNC복합기", color: "var(--s2)" },
+  { key: "MCT",       color: "var(--s3)" },
+  { key: "태핑머신",  color: "var(--s7)" },
+  { key: "기타",      color: "var(--s8)" },
+];
+const machColor = t => (MTYPES.find(x => x.key === t) || MTYPES[MTYPES.length-1]).color;
+const machById = id => S.machines.find(m => m.id === id);
 const PROJECT_STATUS = ["진행중","완료","보류"];
 const LISTS = {
   employees: { name: "WF_Employees", cols: [
@@ -267,7 +275,10 @@ const LISTS = {
     { name:"Status", text:{} }, { name:"Note", text:{allowMultipleLines:true} } ] },
   tasks: { name: "WF_Tasks", cols: [
     { name:"ProjectId", text:{} }, { name:"AssigneeEmail", text:{} }, { name:"Process", text:{} },
-    { name:"EstHours", number:{} }, { name:"Percent", number:{} }, { name:"TStatus", text:{} } ] },
+    { name:"EstHours", number:{} }, { name:"Percent", number:{} }, { name:"TStatus", text:{} },
+    { name:"MachineId", text:{} }, { name:"TStart", text:{} }, { name:"TDue", text:{} } ] },
+  machines: { name: "WF_Machines", cols: [
+    { name:"MType", text:{} }, { name:"SortOrder", number:{} }, { name:"Active", text:{} } ] },
   progress: { name: "WF_Progress", cols: [
     { name:"TaskId", text:{} }, { name:"PDate", text:{} }, { name:"Percent", number:{} },
     { name:"Hours", number:{} }, { name:"Note", text:{} }, { name:"AuthorEmail", text:{} } ] },
@@ -320,7 +331,7 @@ const S = {
   mode: null,            // "demo" | "graph"
   store: null,
   me: null,              // {name, email, role, isManager}
-  employees: [], projects: [], tasks: [], progress: [],
+  employees: [], projects: [], tasks: [], progress: [], machines: [],
   view: "dash",
   dashFilter: { status: "진행중", person: "" },
   reportYear: new Date().getFullYear(),
@@ -367,6 +378,23 @@ function makeDemoData(){
     { id:"t11", projectId:"p4", assigneeEmail:"ra@demo.co",     process:"RA",          title:"품질매뉴얼 개정",   estHours:80, percent:45,  tStatus:"진행중" },
     { id:"t12", projectId:"p4", assigneeEmail:"sales@demo.co",  process:"영업·수술지원", title:"고객요구 조사 취합", estHours:12, percent:60, tStatus:"진행중" },
   ];
+  const mc = [
+    { id:"m1", name:"CNC복합기 1호기", mtype:"CNC복합기", sortOrder:1, active:true },
+    { id:"m2", name:"CNC복합기 2호기", mtype:"CNC복합기", sortOrder:2, active:true },
+    { id:"m3", name:"CNC복합기 3호기", mtype:"CNC복합기", sortOrder:3, active:true },
+    { id:"m4", name:"MCT 1호기", mtype:"MCT", sortOrder:4, active:true },
+    { id:"m5", name:"MCT 2호기", mtype:"MCT", sortOrder:5, active:true },
+    { id:"m6", name:"태핑머신 1호기", mtype:"태핑머신", sortOrder:6, active:true },
+  ];
+  const Y2 = Y;
+  Object.assign(tk.find(t=>t.id==="t2"), { machineId:"m1", tStart:Y2+"-08-03", tDue:Y2+"-08-21" });
+  Object.assign(tk.find(t=>t.id==="t3"), { machineId:"m4", tStart:Y2+"-08-05", tDue:Y2+"-08-26" });
+  Object.assign(tk.find(t=>t.id==="t7"), { machineId:"m5", tStart:Y2+"-08-10", tDue:Y2+"-08-24" });
+  Object.assign(tk.find(t=>t.id==="t9"), { machineId:"m2", tStart:Y2+"-06-01", tDue:Y2+"-06-26" });
+  tk.push(
+    { id:"t13", projectId:"p1", assigneeEmail:"cnc@demo.co", process:"CNC복합기", title:"2차 선삭 가공", estHours:40, percent:0, tStatus:"대기", machineId:"m3", tStart:Y2+"-08-24", tDue:Y2+"-09-04" },
+    { id:"t14", projectId:"p1", assigneeEmail:"qc@demo.co", process:"후공정·QC", title:"나사부 탭 가공", estHours:12, percent:0, tStatus:"대기", machineId:"m6", tStart:Y2+"-08-27", tDue:Y2+"-08-29" },
+  );
   const pr = [];
   const today = new Date();
   tk.forEach(t => {
@@ -378,7 +406,7 @@ function makeDemoData(){
       if(p>0 || i===steps-1) pr.push({ id:uid(), taskId:t.id, date:ds, percent:p, hours:Math.round(t.estHours/steps), note:"", authorEmail:t.assigneeEmail });
     }
   });
-  return { emp, pj, tk, pr };
+  return { emp, pj, tk, pr, mc };
 }
 
 class DemoStore {
@@ -389,11 +417,12 @@ class DemoStore {
     S.projects  = this.d.pj.map(x=>({...x}));
     S.tasks     = this.d.tk.map(x=>({...x}));
     S.progress  = this.d.pr.map(x=>({...x}));
+    S.machines  = this.d.mc.map(x=>({...x}));
   }
   async add(list, obj){ const o = {...obj, id: uid()}; this._arr(list).push(o); await this.loadAll(); return o; }
   async update(list, id, patch){ const a=this._arr(list); const i=a.findIndex(x=>x.id===id); if(i>=0) a[i]={...a[i],...patch}; await this.loadAll(); }
   async remove(list, id){ const a=this._arr(list); const i=a.findIndex(x=>x.id===id); if(i>=0) a.splice(i,1); await this.loadAll(); }
-  _arr(list){ return { employees:this.d.emp, projects:this.d.pj, tasks:this.d.tk, progress:this.d.pr }[list]; }
+  _arr(list){ return { employees:this.d.emp, projects:this.d.pj, tasks:this.d.tk, progress:this.d.pr, machines:this.d.mc }[list]; }
 }
 
 /* ---------- Graph(SharePoint) 저장소 ---------- */
@@ -486,14 +515,18 @@ class GraphStore {
     const missing = await this.ensureLists(false);
     if(missing.length) { S.needsSetup = true; S.employees=[];S.projects=[];S.tasks=[];S.progress=[]; return; }
     S.needsSetup = false;
-    const [e,p,t,g] = await Promise.all([this.items("employees"), this.items("projects"), this.items("tasks"), this.items("progress")]);
+    const [e,p,t,g,mc] = await Promise.all([this.items("employees"), this.items("projects"), this.items("tasks"), this.items("progress"), this.items("machines")]);
     S.employees = e.map(x=>({ id:x.id, name:x.fields.Title||"", email:(x.fields.Email||"").toLowerCase(), role:x.fields.Role||"기타",
       isManager: x.fields.IsManager==="Y", active: x.fields.Active!=="N" }));
     S.projects = p.map(x=>({ id:x.id, title:x.fields.Title||"", client:x.fields.Client||"", startDate:x.fields.StartDate||"",
       dueDate:x.fields.DueDate||"", status:x.fields.Status||"진행중", note:x.fields.Note||"" }));
     S.tasks = t.map(x=>({ id:x.id, projectId:x.fields.ProjectId||"", assigneeEmail:(x.fields.AssigneeEmail||"").toLowerCase(),
       process:x.fields.Process||"기타", title:x.fields.Title||"", estHours:Number(x.fields.EstHours)||0,
-      percent:Number(x.fields.Percent)||0, tStatus:x.fields.TStatus||"진행중" }));
+      percent:Number(x.fields.Percent)||0, tStatus:x.fields.TStatus||"진행중",
+      machineId:x.fields.MachineId||"", tStart:x.fields.TStart||"", tDue:x.fields.TDue||"" }));
+    S.machines = mc.map(x=>({ id:x.id, name:x.fields.Title||"", mtype:x.fields.MType||"기타",
+      sortOrder:Number(x.fields.SortOrder)||0, active:x.fields.Active!=="N" }))
+      .sort((a,b)=>a.sortOrder-b.sortOrder);
     S.progress = g.map(x=>({ id:x.id, taskId:x.fields.TaskId||"", date:x.fields.PDate||"", percent:Number(x.fields.Percent)||0,
       hours:Number(x.fields.Hours)||0, note:x.fields.Note||"", authorEmail:(x.fields.AuthorEmail||"").toLowerCase() }));
   }
@@ -501,23 +534,25 @@ class GraphStore {
     switch(list){
       case "employees": return { Title:obj.name, Email:obj.email, Role:obj.role, IsManager:obj.isManager?"Y":"N", Active:obj.active===false?"N":"Y" };
       case "projects":  return { Title:obj.title, Client:obj.client||"", StartDate:obj.startDate||"", DueDate:obj.dueDate||"", Status:obj.status||"진행중", Note:obj.note||"" };
-      case "tasks":     return { Title:obj.title, ProjectId:obj.projectId, AssigneeEmail:obj.assigneeEmail, Process:obj.process, EstHours:obj.estHours||0, Percent:obj.percent||0, TStatus:obj.tStatus||"진행중" };
+      case "tasks":     return { Title:obj.title, ProjectId:obj.projectId, AssigneeEmail:obj.assigneeEmail, Process:obj.process, EstHours:obj.estHours||0, Percent:obj.percent||0, TStatus:obj.tStatus||"진행중", MachineId:obj.machineId||"", TStart:obj.tStart||"", TDue:obj.tDue||"" };
       case "progress":  return { Title:(obj.date||"")+" 진행입력", TaskId:obj.taskId, PDate:obj.date, Percent:obj.percent||0, Hours:obj.hours||0, Note:obj.note||"", AuthorEmail:obj.authorEmail };
+      case "machines":  return { Title:obj.name, MType:obj.mtype||"기타", SortOrder:obj.sortOrder||0, Active:obj.active===false?"N":"Y" };
     }
   }
   _patchFields(list, patch){
     const map = {
       employees:{ name:"Title", email:"Email", role:"Role", isManager:"IsManager", active:"Active" },
       projects:{ title:"Title", client:"Client", startDate:"StartDate", dueDate:"DueDate", status:"Status", note:"Note" },
-      tasks:{ title:"Title", projectId:"ProjectId", assigneeEmail:"AssigneeEmail", process:"Process", estHours:"EstHours", percent:"Percent", tStatus:"TStatus" },
+      tasks:{ title:"Title", projectId:"ProjectId", assigneeEmail:"AssigneeEmail", process:"Process", estHours:"EstHours", percent:"Percent", tStatus:"TStatus", machineId:"MachineId", tStart:"TStart", tDue:"TDue" },
       progress:{ taskId:"TaskId", date:"PDate", percent:"Percent", hours:"Hours", note:"Note", authorEmail:"AuthorEmail" },
+      machines:{ name:"Title", mtype:"MType", sortOrder:"SortOrder", active:"Active" },
     }[list];
     const f = {};
     for(const k of Object.keys(patch)){
       if(!(k in map)) continue;
       let v = patch[k];
       if(list==="employees" && k==="isManager") v = v ? "Y":"N";
-      if(list==="employees" && k==="active") v = v===false ? "N":"Y";
+      if((list==="employees"||list==="machines") && k==="active") v = v===false ? "N":"Y";
       f[map[k]] = v;
     }
     return f;
@@ -556,10 +591,12 @@ const ICONS = {
   proj: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h6l2 2h10v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19V7z"/><path d="M3 7V5.5A1.5 1.5 0 0 1 4.5 4H9l2 2"/></svg>',
   rep: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>',
   set: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>',
+  mach: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="8" width="18" height="10" rx="1.5"/><path d="M7 8V5.5A1.5 1.5 0 0 1 8.5 4h7A1.5 1.5 0 0 1 17 5.5V8M7 18v2.5M17 18v2.5M7.5 12h3M7.5 15h2"/><circle cx="16" cy="13" r="2.2"/></svg>',
 };
 const NAV = [
   { id:"dash", label:"대시보드", icon:"dash" },
   { id:"my",   label:"내 업무",  icon:"my" },
+  { id:"mach", label:"장비",     icon:"mach" },
   { id:"proj", label:"프로젝트", icon:"proj" },
   { id:"rep",  label:"리포트",   icon:"rep" },
   { id:"set",  label:"설정",     icon:"set" },
@@ -611,7 +648,7 @@ function shell(content){
   </div>`;
 }
 function render(){
-  const v = { dash: vDash, my: vMy, proj: vProj, rep: vRep, set: vSet }[S.view] || vDash;
+  const v = { dash: vDash, my: vMy, mach: vMach, proj: vProj, rep: vRep, set: vSet }[S.view] || vDash;
   $("#root").innerHTML = shell(v());
 }
 
@@ -734,6 +771,67 @@ function vMy(){
 </script>
 <script>
 "use strict";
+/* ---------- 장비 현황 ---------- */
+function machState(cur, late){
+  if(late) return `<span class="chip state-late">지연 ⚠</span>`;
+  if(cur.length) return `<span class="chip" style="color:var(--good-text);border-color:var(--good-text);font-weight:600">가동중</span>`;
+  return `<span class="chip state-hold">대기중</span>`;
+}
+function vMach(){
+  const machines = S.machines.filter(m=>m.active);
+  const withTasks = machines.map(m=>{
+    const ts = S.tasks.filter(t=>t.machineId===m.id);
+    const cur = ts.filter(t=>t.tStatus==="진행중").sort((a,b)=>b.percent-a.percent);
+    const queued = ts.filter(t=>t.tStatus==="대기").sort((a,b)=>(a.tStart||"9999").localeCompare(b.tStart||"9999"));
+    const done = ts.filter(t=>t.tStatus==="완료");
+    const late = cur.some(t=>t.tDue && t.tDue < todayStr() && t.percent < 100);
+    return { m, cur, queued, done, late };
+  });
+  const running = withTasks.filter(x=>x.cur.length).length;
+  const idle = machines.length - running;
+  const jobRow = (t, isCur) => {
+    const p = S.projects.find(x=>x.id===t.projectId);
+    const overdue = isCur && t.tDue && t.tDue < todayStr() && t.percent < 100;
+    return `<div class="taskcard" style="padding:10px 12px;margin-bottom:8px">
+      <div class="hd" style="margin-bottom:2px">
+        <b style="font-size:13.5px">${esc(t.title)}</b>
+        <span class="small" style="color:var(--ink-3)">${esc(empName(t.assigneeEmail))}</span>
+      </div>
+      <div class="muted">${esc(p?p.title:"-")} · 예상 ${t.estHours}h
+        ${t.tStart||t.tDue?` · ${fmtD(t.tStart)} ~ ${fmtD(t.tDue)}`:""}
+        ${overdue?` <span style="color:var(--serious);font-weight:600">기한 초과</span>`:""}</div>
+      ${isCur?`<div class="row" style="margin-top:7px;gap:8px;flex-wrap:nowrap">
+        <div class="meter thin" style="flex:1"><i style="width:${t.percent}%"></i></div>
+        <b class="small" style="min-width:36px;text-align:right">${t.percent}%</b>
+      </div>`:""}
+    </div>`;
+  };
+  return `
+  <div class="topbar"><div><h1>장비 현황</h1><div class="sub">기계별 현재 투입 작업과 예정 작업 — 전 직원 공유</div></div></div>
+  <div class="tiles">
+    <div class="tile"><div class="lb">전체 장비</div><div class="vl">${machines.length}<span style="font-size:14px;font-weight:400">대</span></div></div>
+    <div class="tile"><div class="lb">가동중</div><div class="vl" style="color:var(--good-text)">${running}<span style="font-size:14px;font-weight:400">대</span></div></div>
+    <div class="tile"><div class="lb">대기중</div><div class="vl">${idle}<span style="font-size:14px;font-weight:400">대</span></div></div>
+  </div>
+  ${machines.length===0?`<div class="card empty">등록된 장비가 없습니다.${S.me.isManager?"<br>설정 → 장비 관리에서 추가하세요.":""}</div>`:""}
+  ${withTasks.map(({m,cur,queued,done,late})=>`
+    <div class="card">
+      <div class="proj-head">
+        <b><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${machColor(m.mtype)};margin-right:7px"></span>${esc(m.name)}</b>
+        <span class="row" style="gap:6px">${machState(cur, late)}</span>
+      </div>
+      ${cur.length?`<div class="small" style="margin:9px 0 5px;color:var(--ink-2);font-weight:600">현재 투입 작업</div>${cur.map(t=>jobRow(t,true)).join("")}`
+        :`<div class="muted" style="margin-top:8px">현재 투입된 작업이 없습니다.</div>`}
+      ${queued.length?`<div class="small" style="margin:10px 0 5px;color:var(--ink-2);font-weight:600">예정된 작업 ${queued.length}건</div>${queued.map(t=>jobRow(t,false)).join("")}`:""}
+      ${done.length?`<div class="muted" style="margin-top:6px">완료된 작업 ${done.length}건</div>`:""}
+    </div>`).join("")}
+  <div class="card">
+    <h2>장비 구분 범례</h2>
+    <div class="legend">${MTYPES.slice(0,3).map(t=>`<span><span class="sw" style="background:${t.color}"></span>${t.key}</span>`).join("")}</div>
+    <div class="muted" style="margin-top:6px">업무에 장비를 지정하려면 프로젝트 탭에서 업무 수정 시 '장비'를 선택하세요.</div>
+  </div>`;
+}
+
 /* ---------- 프로젝트 관리 ---------- */
 function vProj(){
   const mgr = S.me.isManager;
@@ -875,6 +973,16 @@ function vSet(){
     </tbody></table>
     <div class="muted" style="margin-top:8px">직원은 회사 M365 계정 이메일로 자동 매칭됩니다. 퇴사자는 '비활성'으로 바꾸면 목록에서 숨겨집니다.</div>
   </div>`:""}
+  ${mgr?`<div class="card">
+    <h2>장비 관리 <button class="btn sm" style="float:right" onclick="A.machForm()">+ 장비 추가</button></h2>
+    ${S.machines.length?`<table class="tv"><thead><tr><th>장비명</th><th>구분</th><th>상태</th><th></th></tr></thead><tbody>
+    ${S.machines.map(m=>`<tr style="${m.active?"":"opacity:.5"}">
+      <td>${esc(m.name)}</td>
+      <td><span class="chip"><span class="dot" style="background:${machColor(m.mtype)}"></span>${esc(m.mtype)}</span></td>
+      <td class="small">${m.active?"사용중":"비활성"}</td>
+      <td><button class="linkish" onclick="A.machForm('${m.id}')">수정</button></td></tr>`).join("")}
+    </tbody></table>`:`<div class="muted">등록된 장비가 없습니다. '+ 장비 추가'로 등록하세요.</div>`}
+  </div>`:""}
   ${S.mode==="graph"?`<div class="card">
     <h2>연결</h2>
     <div class="row">
@@ -1003,7 +1111,7 @@ const A = {
   taskForm(id, projectId){
     if(!S.me.isManager) return;
     const t = id ? S.tasks.find(x=>x.id===id)
-                 : { projectId: projectId||S.projects[0]?.id, title:"", process:PROCESSES[0].key, assigneeEmail:S.employees[0]?.email||"", estHours:8, percent:0, tStatus:"진행중" };
+                 : { projectId: projectId||S.projects[0]?.id, title:"", process:PROCESSES[0].key, assigneeEmail:S.employees[0]?.email||"", estHours:8, percent:0, tStatus:"진행중", machineId:"", tStart:"", tDue:"" };
     const bg = openModal(`
       <h3>${id?"업무 수정":"업무 추가"}</h3>
       <div class="frm">
@@ -1016,6 +1124,11 @@ const A = {
         <div class="two">
           ${fld("h","예상 시간(h) *",`<input id="f_h" type="number" min="0" step="0.5" value="${t.estHours}">`)}
           ${fld("pc","현재 진행률(%)",`<input id="f_pc" type="number" min="0" max="100" step="5" value="${t.percent}">`)}
+        </div>
+        ${fld("m","투입 장비 (선택)",`<select id="f_m"><option value="">장비 없음</option>${S.machines.filter(m=>m.active).map(m=>`<option value="${m.id}" ${t.machineId===m.id?"selected":""}>${esc(m.name)}</option>`).join("")}</select>`)}
+        <div class="two">
+          ${fld("ts","작업 시작일",`<input id="f_ts" type="date" value="${t.tStart||""}">`)}
+          ${fld("td","작업 완료 예정일",`<input id="f_td" type="date" value="${t.tDue||""}">`)}
         </div>
       </div>
       <div class="acts">
@@ -1033,7 +1146,8 @@ const A = {
       const pc = clamp(Number($("#f_pc",bg).value)||0,0,100);
       const v = { projectId:$("#f_p",bg).value, title:$("#f_t",bg).value.trim(), process:$("#f_pr",bg).value,
         assigneeEmail:$("#f_a",bg).value, estHours:Number($("#f_h",bg).value)||0, percent:pc,
-        tStatus: pc>=100?"완료":(pc>0?"진행중":"대기") };
+        tStatus: pc>=100?"완료":(pc>0?"진행중":"대기"),
+        machineId:$("#f_m",bg).value, tStart:$("#f_ts",bg).value, tDue:$("#f_td",bg).value };
       if(!v.title){ toast("업무명을 입력하세요"); return; }
       bg.remove();
       await busy(async()=>{
@@ -1069,6 +1183,36 @@ const A = {
       await busy(async()=>{
         if(id) await S.store.update("employees", id, v);
         else await S.store.add("employees", v);
+        toast("저장했습니다 ✓");
+      });
+    };
+  },
+
+  /* ----- 장비 폼 ----- */
+  machForm(id){
+    if(!S.me.isManager) return;
+    const m = id ? S.machines.find(x=>x.id===id)
+                 : { name:"", mtype:MTYPES[0].key, sortOrder:(Math.max(0,...S.machines.map(x=>x.sortOrder||0))+1), active:true };
+    const bg = openModal(`
+      <h3>${id?"장비 정보 수정":"장비 추가"}</h3>
+      <div class="frm">
+        ${fld("n","장비명 *",`<input id="f_n" value="${esc(m.name)}" placeholder="예: CNC복합기 1호기">`)}
+        <div class="two">
+          ${fld("t","구분",`<select id="f_t">${MTYPES.map(x=>`<option ${m.mtype===x.key?"selected":""}>${x.key}</option>`).join("")}</select>`)}
+          ${fld("ac","상태",`<select id="f_ac"><option value="Y" ${m.active?"selected":""}>사용중</option><option value="N" ${!m.active?"selected":""}>비활성</option></select>`)}
+        </div>
+        ${fld("so","표시 순서",`<input id="f_so" type="number" min="0" value="${m.sortOrder||0}">`)}
+      </div>
+      <div class="acts"><button class="btn ghost" id="f_cancel">취소</button><button class="btn" id="f_save">저장</button></div>`);
+    $("#f_cancel",bg).onclick = ()=>bg.remove();
+    $("#f_save",bg).onclick = async()=>{
+      const v = { name:$("#f_n",bg).value.trim(), mtype:$("#f_t",bg).value,
+        sortOrder:Number($("#f_so",bg).value)||0, active:$("#f_ac",bg).value==="Y" };
+      if(!v.name){ toast("장비명을 입력하세요"); return; }
+      bg.remove();
+      await busy(async()=>{
+        if(id) await S.store.update("machines", id, v);
+        else await S.store.add("machines", v);
         toast("저장했습니다 ✓");
       });
     };
