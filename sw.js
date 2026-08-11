@@ -1,5 +1,5 @@
 /* 워크플로 현황판 서비스워커 — 앱 셸 캐시 */
-const CACHE = "wf-shell-v1";
+const CACHE = "wf-shell-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {

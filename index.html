@@ -219,7 +219,27 @@ details.sect[open] summary::before{content:"▾ "}
 </head>
 <body>
 <div id="root"></div>
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js" crossorigin="anonymous" onerror="window.__msalLoadFailed=true"></script>
+<script>
+/* 로그인 모듈(MSAL) 동적 로더 — 여러 CDN을 순서대로 시도 */
+function __loadScript(src){ return new Promise((res, rej) => {
+  const s = document.createElement("script"); s.src = src;
+  s.onload = () => res(); s.onerror = () => { s.remove(); rej(new Error("load fail: " + src)); };
+  document.head.appendChild(s);
+}); }
+async function ensureMsal(){
+  if (typeof msal !== "undefined") return true;
+  const urls = [
+    "https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.4/lib/msal-browser.min.js",
+    "https://unpkg.com/@azure/msal-browser@2.38.4/lib/msal-browser.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/msal-browser/2.32.2/msal-browser.min.js",
+  ];
+  for (const u of urls){
+    try { await __loadScript(u); if (typeof msal !== "undefined") return true; }
+    catch(e){ console.warn(e.message); }
+  }
+  return false;
+}
+</script>
 <script>
 "use strict";
 /* =========================================================
@@ -1147,8 +1167,9 @@ async function startDemo(){
   toast("데모 모드입니다. 관리자 '김공정'으로 접속했어요.", 3600);
 }
 async function startGraph(){
-  if(window.__msalLoadFailed || typeof msal === "undefined"){
-    renderGate("로그인 모듈을 불러오지 못했습니다. 인터넷 연결을 확인하세요."); return;
+  renderLoading("로그인 모듈을 불러오는 중…");
+  if(!(await ensureMsal())){
+    renderGate("로그인 모듈을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요."); return;
   }
   renderLoading("Microsoft 365 로그인 중…");
   try{
