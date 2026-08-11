@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1c5cab">
+<title>워크플로 현황판</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --page:#f9f9f7;
+  --ink-1:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
+  --grid:#e1e0d9; --baseline:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --accent:#2a78d6; --accent-deep:#1c5cab; --accent-track:#cde2fb;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --good-text:#006300;
+  --shadow:0 1px 2px rgba(11,11,11,.05),0 4px 14px rgba(11,11,11,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-3:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --ring:rgba(255,255,255,.10);
+    --accent:#3987e5; --accent-deep:#86b6ef; --accent-track:#184f95;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --good-text:#0ca30c;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-1:#1a1a19; --page:#0d0d0d;
+  --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-3:#898781;
+  --grid:#2c2c2a; --baseline:#383835; --ring:rgba(255,255,255,.10);
+  --accent:#3987e5; --accent-deep:#86b6ef; --accent-track:#184f95;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --good-text:#0ca30c;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+  background:var(--page); color:var(--ink-1);
+  min-height:100dvh; font-size:15px; line-height:1.5;
+}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font:inherit;color:var(--ink-1);background:var(--surface-1);
+  border:1px solid var(--baseline);border-radius:8px;padding:8px 10px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+label{font-size:13px;color:var(--ink-2);display:block;margin-bottom:4px}
+a{color:var(--accent-deep)}
+
+/* ---------- layout ---------- */
+#app{display:flex;min-height:100dvh}
+.side{display:none}
+main{flex:1;min-width:0;padding:16px 16px calc(76px + env(safe-area-inset-bottom));max-width:1080px;margin:0 auto;width:100%}
+.tabbar{
+  position:fixed;bottom:0;left:0;right:0;z-index:40;
+  display:flex;background:var(--surface-1);border-top:1px solid var(--grid);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.tabbar button{flex:1;padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-size:11px;color:var(--ink-3)}
+.tabbar button.on{color:var(--accent-deep);font-weight:600}
+.tabbar svg{width:22px;height:22px}
+@media(min-width:900px){
+  .tabbar{display:none}
+  .side{display:flex;flex-direction:column;gap:4px;width:210px;padding:20px 12px;
+    border-right:1px solid var(--grid);background:var(--surface-1);position:sticky;top:0;height:100dvh}
+  .side .brand{font-weight:700;font-size:17px;padding:6px 10px 18px;display:flex;gap:8px;align-items:center}
+  .side button{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:8px;
+    font-size:14px;color:var(--ink-2);text-align:left}
+  .side button.on{background:var(--accent-track);color:var(--accent-deep);font-weight:600}
+  :root[data-theme="dark"] .side button.on{color:#fff}
+  .side svg{width:20px;height:20px}
+  main{padding:24px 32px 60px}
+}
+
+/* ---------- common ---------- */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+.topbar h1{font-size:20px;font-weight:700}
+.topbar .sub{font-size:12.5px;color:var(--ink-3)}
+.card{background:var(--surface-1);border:1px solid var(--ring);border-radius:14px;
+  box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;font-weight:700;margin-bottom:12px}
+.card h2 .muted{font-weight:400;color:var(--ink-3);font-size:12.5px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--accent-deep);color:#fff;border-radius:9px;padding:9px 16px;font-weight:600;font-size:14px}
+:root[data-theme="dark"] .btn{color:#0d0d0d}
+.btn.ghost{background:none;color:var(--accent-deep);border:1px solid var(--baseline)}
+.btn.sm{padding:5px 11px;font-size:12.5px;border-radius:7px}
+.btn.danger{background:none;border:1px solid var(--baseline);color:var(--critical)}
+.btn:disabled{opacity:.45;cursor:default}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:2px 9px;border-radius:99px;
+  border:1px solid var(--grid);color:var(--ink-2);background:var(--surface-1)}
+.chip .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.chip.state-late{border-color:var(--serious);color:var(--serious);font-weight:600}
+.chip.state-ok{border-color:var(--grid);color:var(--good-text);font-weight:600}
+.chip.state-done{border-color:var(--grid);color:var(--ink-2);font-weight:600}
+.chip.state-hold{border-color:var(--grid);color:var(--ink-3);font-weight:600}
+.muted{color:var(--ink-3);font-size:12.5px}
+.small{font-size:12.5px}
+hr.sep{border:none;border-top:1px solid var(--grid);margin:12px 0}
+.empty{color:var(--ink-3);text-align:center;padding:28px 10px;font-size:13.5px}
+
+/* filter row */
+.filterrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filterrow select{width:auto;min-width:110px;padding:6px 10px;font-size:13px;border-radius:8px}
+.seg{display:inline-flex;border:1px solid var(--baseline);border-radius:9px;overflow:hidden}
+.seg button{padding:6px 13px;font-size:13px;color:var(--ink-2)}
+.seg button.on{background:var(--accent-track);color:var(--accent-deep);font-weight:600}
+:root[data-theme="dark"] .seg button.on{color:#fff}
+
+/* stat tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--surface-1);border:1px solid var(--ring);border-radius:14px;box-shadow:var(--shadow);padding:13px 15px}
+.tile .lb{font-size:12.5px;color:var(--ink-2)}
+.tile .vl{font-size:26px;font-weight:600;margin-top:2px}
+.tile .dl{font-size:12px;margin-top:2px;color:var(--ink-3)}
+.tile .dl.up{color:var(--good-text)} .tile .dl.warn{color:var(--serious)}
+
+/* ---------- bars & charts ---------- */
+.meter{position:relative;height:14px;border-radius:7px;background:var(--accent-track);overflow:hidden}
+.meter>i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:0 4px 4px 0;min-width:2px}
+.meter>b.exp{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink-2);opacity:.55}
+.meter.thin{height:8px;border-radius:4px}
+.barrow{display:grid;grid-template-columns:minmax(84px,150px) 1fr auto;gap:10px;align-items:center;padding:5px 0}
+.barrow .nm{font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.barrow .vl{font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
+.hbar{height:16px;background:var(--accent-track);border-radius:8px;position:relative;overflow:hidden}
+.hbar>i{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--accent);min-width:2px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 2px}
+.legend span{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--ink-2)}
+.legend .sw{width:10px;height:10px;border-radius:3px;flex:none}
+
+/* gantt */
+.gantt{overflow-x:auto}
+.gantt-inner{min-width:640px}
+.g-axis{display:grid;grid-template-columns:repeat(12,1fr);border-bottom:1px solid var(--baseline);margin-left:150px}
+.g-axis span{font-size:11px;color:var(--ink-3);padding:2px 0 4px;border-left:1px solid var(--grid)}
+.g-row{display:flex;align-items:center;min-height:34px;position:relative}
+.g-row .nm{width:150px;flex:none;font-size:12.5px;color:var(--ink-2);padding-right:8px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-track{flex:1;position:relative;height:34px}
+.g-grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(12,1fr)}
+.g-grid i{border-left:1px solid var(--grid)}
+.g-bar{position:absolute;top:8px;height:18px;border-radius:4px;background:var(--accent-track);overflow:hidden;min-width:4px}
+.g-bar>i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:0 3px 3px 0}
+.g-today{position:absolute;top:0;bottom:0;width:2px;background:var(--serious);opacity:.7}
+
+/* tables */
+table.tv{width:100%;border-collapse:collapse;font-size:13px}
+table.tv th{color:var(--ink-2);font-weight:600;text-align:left;border-bottom:1px solid var(--baseline);padding:6px 8px}
+table.tv td{border-bottom:1px solid var(--grid);padding:6px 8px;font-variant-numeric:tabular-nums}
+.tv-wrap{overflow-x:auto}
+.tv-wrap table.tv{min-width:560px}
+.tv-wrap .chip{white-space:nowrap}
+
+/* my task input */
+.taskcard{border:1px solid var(--grid);border-radius:12px;padding:12px;margin-bottom:10px}
+.taskcard .hd{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
+.taskcard .hd b{font-size:14px}
+input[type=range]{appearance:none;-webkit-appearance:none;width:100%;height:26px;background:none;border:none;padding:0}
+input[type=range]::-webkit-slider-runnable-track{height:10px;border-radius:5px;background:var(--accent-track)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;
+  background:var(--accent);border:3px solid var(--surface-1);box-shadow:0 0 0 1px var(--ring);margin-top:-7px}
+input[type=range]::-moz-range-track{height:10px;border-radius:5px;background:var(--accent-track)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:3px solid var(--surface-1)}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:640px){.modal-bg{align-items:center}}
+.modal{background:var(--surface-1);border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:88dvh;
+  overflow-y:auto;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
+@media(min-width:640px){.modal{border-radius:16px}}
+.modal h3{font-size:16px;margin-bottom:14px}
+.modal .frm{display:grid;gap:11px}
+.modal .frm .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* login/setup */
+.gate{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px}
+.gate .box{width:100%;max-width:420px;background:var(--surface-1);border:1px solid var(--ring);
+  border-radius:18px;box-shadow:var(--shadow);padding:28px 24px}
+.gate h1{font-size:21px;margin-bottom:4px;display:flex;align-items:center;gap:9px}
+.gate .box .desc{color:var(--ink-2);font-size:13.5px;margin-bottom:18px}
+.gate .frm{display:grid;gap:12px}
+.logo{width:34px;height:34px;border-radius:9px;background:var(--accent-deep);color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));
+  background:var(--ink-1);color:var(--page);padding:9px 16px;border-radius:99px;font-size:13px;z-index:80;
+  box-shadow:var(--shadow);max-width:90vw;text-align:center}
+@media(min-width:900px){.toast{bottom:30px}}
+.spin{width:22px;height:22px;border:3px solid var(--accent-track);border-top-color:var(--accent);
+  border-radius:50%;animation:sp 0.8s linear infinite;margin:0 auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.demo-banner{background:var(--accent-track);color:var(--accent-deep);font-size:12.5px;
+  padding:7px 12px;border-radius:9px;margin-bottom:14px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+:root[data-theme="dark"] .demo-banner{color:#fff}
+.proj-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.proj-head b{font-size:14.5px}
+.proc-line{display:grid;grid-template-columns:minmax(80px,120px) 1fr auto;gap:8px;align-items:center;padding:3px 0}
+.proc-line .nm{font-size:12px;color:var(--ink-2);display:flex;gap:6px;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.proc-line .nm .sw{width:9px;height:9px;border-radius:3px;flex:none}
+.proc-line .vl{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;min-width:38px;text-align:right}
+.pbar{height:8px;border-radius:4px;position:relative;overflow:hidden;background:var(--page);border:1px solid var(--grid)}
+.pbar>i{position:absolute;left:0;top:0;bottom:0;border-radius:0 3px 3px 0;min-width:2px}
+.linkish{color:var(--accent-deep);font-size:12.5px;font-weight:600}
+details.sect summary{cursor:pointer;font-size:13px;color:var(--ink-2);padding:6px 0;list-style:none}
+details.sect summary::before{content:"▸ ";color:var(--ink-3)}
+details.sect[open] summary::before{content:"▾ "}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js" crossorigin="anonymous" onerror="window.__msalLoadFailed=true"></script>
+<script>
+"use strict";
+/* =========================================================
+   워크플로 현황판 — 소규모 제조팀 공정/프로젝트 진행 관리
+   저장소: Microsoft 365 SharePoint (Graph API) 또는 데모 모드
+   ========================================================= */
+
+/* ---------- 상수 ---------- */
+const PROCESSES = [
+  { key: "설계·공정관리", color: "var(--s1)" },
+  { key: "CNC복합기",   color: "var(--s2)" },
+  { key: "MCT",         color: "var(--s3)" },
+  { key: "후공정·QC",   color: "var(--s4)" },
+  { key: "RA",          color: "var(--s5)" },
+  { key: "영업·수술지원", color: "var(--s6)" },
+  { key: "기타",         color: "var(--s7)" },
+];
+const procColor = p => (PROCESSES.find(x => x.key === p) || PROCESSES[PROCESSES.length-1]).color;
+const PROJECT_STATUS = ["진행중","완료","보류"];
+const LISTS = {
+  employees: { name: "WF_Employees", cols: [
+    { name:"Email", text:{} }, { name:"Role", text:{} }, { name:"IsManager", text:{} }, { name:"Active", text:{} } ] },
+  projects: { name: "WF_Projects", cols: [
+    { name:"Client", text:{} }, { name:"StartDate", text:{} }, { name:"DueDate", text:{} },
+    { name:"Status", text:{} }, { name:"Note", text:{allowMultipleLines:true} } ] },
+  tasks: { name: "WF_Tasks", cols: [
+    { name:"ProjectId", text:{} }, { name:"AssigneeEmail", text:{} }, { name:"Process", text:{} },
+    { name:"EstHours", number:{} }, { name:"Percent", number:{} }, { name:"TStatus", text:{} } ] },
+  progress: { name: "WF_Progress", cols: [
+    { name:"TaskId", text:{} }, { name:"PDate", text:{} }, { name:"Percent", number:{} },
+    { name:"Hours", number:{} }, { name:"Note", text:{} }, { name:"AuthorEmail", text:{} } ] },
+};
+
+/* ---------- 유틸 ---------- */
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const todayStr = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const fmtD = s => s ? s.replace(/^(\d{4})-(\d{2})-(\d{2})$/,"$1.$2.$3") : "-";
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+function toast(msg, ms=2600){
+  $$(".toast").forEach(t=>t.remove());
+  const t = document.createElement("div"); t.className="toast"; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), ms);
+}
+function dayDiff(a,b){ return Math.round((new Date(b) - new Date(a)) / 86400000); }
+function expectedPct(p){
+  if(!p.startDate || !p.dueDate) return null;
+  const total = dayDiff(p.startDate, p.dueDate); if(total<=0) return null;
+  return clamp(Math.round(dayDiff(p.startDate, todayStr()) / total * 100), 0, 100);
+}
+
+/* ---------- 설정 저장 ---------- */
+const CFG_KEY = "wf_config_v1";
+function loadCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)) || null; }catch(e){ return null; } }
+function saveCfg(c){ localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
+function clearCfg(){ localStorage.removeItem(CFG_KEY); }
+
+/* URL 해시로 설정 공유: #setup=base64(json) */
+(function importCfgFromHash(){
+  const m = location.hash.match(/#setup=([A-Za-z0-9+/=_-]+)/);
+  if(!m) return;
+  try{
+    const c = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,"+").replace(/_/g,"/")))));
+    if(c.clientId && c.tenantId){ saveCfg({ clientId:c.clientId.trim(), tenantId:c.tenantId.trim() }); }
+    history.replaceState(null,"",location.pathname);
+  }catch(e){ console.warn("setup hash parse fail", e); }
+})();
+function setupLink(){
+  const c = loadCfg(); if(!c) return "";
+  const b = btoa(unescape(encodeURIComponent(JSON.stringify({clientId:c.clientId, tenantId:c.tenantId}))));
+  return location.origin + location.pathname + "#setup=" + b;
+}
+
+/* ---------- 전역 상태 ---------- */
+const S = {
+  mode: null,            // "demo" | "graph"
+  store: null,
+  me: null,              // {name, email, role, isManager}
+  employees: [], projects: [], tasks: [], progress: [],
+  view: "dash",
+  dashFilter: { status: "진행중", person: "" },
+  reportYear: new Date().getFullYear(),
+  reportTable: false,
+  loading: false,
+};
+</script>
+<script>
+"use strict";
+/* =========================================================
+   데이터 저장소 — DemoStore(체험용) / GraphStore(SharePoint)
+   공통 인터페이스: init, loadAll, add/update/remove(list, ...)
+   ========================================================= */
+
+/* ---------- 데모 저장소 ---------- */
+function makeDemoData(){
+  const Y = new Date().getFullYear();
+  const emp = [
+    { id:"e1", name:"김공정", email:"design@demo.co",  role:"설계·공정관리", isManager:true,  active:true },
+    { id:"e2", name:"박선반", email:"cnc@demo.co",     role:"CNC복합기",   isManager:false, active:true },
+    { id:"e3", name:"이밀링", email:"mct1@demo.co",    role:"MCT",         isManager:false, active:true },
+    { id:"e4", name:"최밀링", email:"mct2@demo.co",    role:"MCT",         isManager:false, active:true },
+    { id:"e5", name:"정검사", email:"qc@demo.co",      role:"후공정·QC",   isManager:false, active:true },
+    { id:"e6", name:"한인허", email:"ra@demo.co",      role:"RA",          isManager:false, active:true },
+    { id:"e7", name:"오영업", email:"sales@demo.co",   role:"영업·수술지원", isManager:true, active:true },
+  ];
+  const pj = [
+    { id:"p1", title:"티타늄 픽스처 A-32 양산", client:"S메디칼", startDate:Y+"-06-22", dueDate:Y+"-09-10", status:"진행중", note:"" },
+    { id:"p2", title:"척추 케이지 시제품",       client:"본원",     startDate:Y+"-07-13", dueDate:Y+"-08-28", status:"진행중", note:"1차 시제품 3종" },
+    { id:"p3", title:"수술기구 핸들 개선",       client:"K병원",    startDate:Y+"-05-04", dueDate:Y+"-07-17", status:"완료",   note:"" },
+    { id:"p4", title:"ISO 13485 갱신 문서",      client:"내부",     startDate:Y+"-07-01", dueDate:Y+"-10-30", status:"진행중", note:"심사 "+Y+".11월 예정" },
+  ];
+  const tk = [
+    { id:"t1",  projectId:"p1", assigneeEmail:"design@demo.co", process:"설계·공정관리", title:"공정설계·도면 배포", estHours:24, percent:100, tStatus:"완료" },
+    { id:"t2",  projectId:"p1", assigneeEmail:"cnc@demo.co",    process:"CNC복합기",   title:"1차 선삭 가공",     estHours:60, percent:75,  tStatus:"진행중" },
+    { id:"t3",  projectId:"p1", assigneeEmail:"mct1@demo.co",   process:"MCT",         title:"상부 밀링",         estHours:48, percent:55,  tStatus:"진행중" },
+    { id:"t4",  projectId:"p1", assigneeEmail:"qc@demo.co",     process:"후공정·QC",   title:"세척·전해연마·검사", estHours:36, percent:20,  tStatus:"진행중" },
+    { id:"t5",  projectId:"p1", assigneeEmail:"ra@demo.co",     process:"RA",          title:"제품표준서 개정",   estHours:16, percent:30,  tStatus:"진행중" },
+    { id:"t6",  projectId:"p2", assigneeEmail:"design@demo.co", process:"설계·공정관리", title:"3D 모델·공정 검토", estHours:20, percent:90,  tStatus:"진행중" },
+    { id:"t7",  projectId:"p2", assigneeEmail:"mct2@demo.co",   process:"MCT",         title:"케이지 본가공",     estHours:56, percent:35,  tStatus:"진행중" },
+    { id:"t8",  projectId:"p2", assigneeEmail:"qc@demo.co",     process:"후공정·QC",   title:"표면처리·측정",     estHours:24, percent:0,   tStatus:"대기" },
+    { id:"t9",  projectId:"p3", assigneeEmail:"cnc@demo.co",    process:"CNC복합기",   title:"핸들 재가공",       estHours:40, percent:100, tStatus:"완료" },
+    { id:"t10", projectId:"p3", assigneeEmail:"qc@demo.co",     process:"후공정·QC",   title:"최종검사·포장",     estHours:16, percent:100, tStatus:"완료" },
+    { id:"t11", projectId:"p4", assigneeEmail:"ra@demo.co",     process:"RA",          title:"품질매뉴얼 개정",   estHours:80, percent:45,  tStatus:"진행중" },
+    { id:"t12", projectId:"p4", assigneeEmail:"sales@demo.co",  process:"영업·수술지원", title:"고객요구 조사 취합", estHours:12, percent:60, tStatus:"진행중" },
+  ];
+  const pr = [];
+  const today = new Date();
+  tk.forEach(t => {
+    let pct = t.percent; const steps = 6;
+    for(let i=0; i<steps; i++){
+      const d = new Date(today); d.setDate(d.getDate() - (steps-1-i)*3);
+      const ds = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+      const p = Math.max(0, Math.round(pct - (steps-1-i)*(pct/steps)));
+      if(p>0 || i===steps-1) pr.push({ id:uid(), taskId:t.id, date:ds, percent:p, hours:Math.round(t.estHours/steps), note:"", authorEmail:t.assigneeEmail });
+    }
+  });
+  return { emp, pj, tk, pr };
+}
+
+class DemoStore {
+  constructor(){ this.d = makeDemoData(); }
+  async init(){ return true; }
+  async loadAll(){
+    S.employees = this.d.emp.map(x=>({...x}));
+    S.projects  = this.d.pj.map(x=>({...x}));
+    S.tasks     = this.d.tk.map(x=>({...x}));
+    S.progress  = this.d.pr.map(x=>({...x}));
+  }
+  async add(list, obj){ const o = {...obj, id: uid()}; this._arr(list).push(o); await this.loadAll(); return o; }
+  async update(list, id, patch){ const a=this._arr(list); const i=a.findIndex(x=>x.id===id); if(i>=0) a[i]={...a[i],...patch}; await this.loadAll(); }
+  async remove(list, id){ const a=this._arr(list); const i=a.findIndex(x=>x.id===id); if(i>=0) a.splice(i,1); await this.loadAll(); }
+  _arr(list){ return { employees:this.d.emp, projects:this.d.pj, tasks:this.d.tk, progress:this.d.pr }[list]; }
+}
+
+/* ---------- Graph(SharePoint) 저장소 ---------- */
+class GraphStore {
+  constructor(cfg){
+    this.cfg = cfg;
+    this.msal = new msal.PublicClientApplication({
+      auth: {
+        clientId: cfg.clientId,
+        authority: "https://login.microsoftonline.com/" + cfg.tenantId,
+        redirectUri: location.origin + location.pathname,
+      },
+      cache: { cacheLocation: "localStorage" },
+    });
+    this.scopes = ["User.Read", "Sites.ReadWrite.All"];
+    this.account = null; this.siteId = null; this.listIds = {};
+  }
+  async init(){
+    const resp = await this.msal.handleRedirectPromise();
+    if(resp && resp.account) this.msal.setActiveAccount(resp.account);
+    const accts = this.msal.getAllAccounts();
+    if(!this.msal.getActiveAccount() && accts.length) this.msal.setActiveAccount(accts[0]);
+    this.account = this.msal.getActiveAccount();
+    if(!this.account){ await this.msal.loginRedirect({ scopes: this.scopes, prompt: "select_account" }); return false; }
+    return true;
+  }
+  async token(){
+    try{
+      const r = await this.msal.acquireTokenSilent({ scopes: this.scopes, account: this.account });
+      return r.accessToken;
+    }catch(e){
+      await this.msal.acquireTokenRedirect({ scopes: this.scopes }); throw e;
+    }
+  }
+  async g(path, opt={}){
+    const t = await this.token();
+    const r = await fetch("https://graph.microsoft.com/v1.0" + path, {
+      ...opt,
+      headers: { Authorization: "Bearer " + t, "Content-Type": "application/json", ...(opt.headers||{}) },
+    });
+    if(r.status === 204) return null;
+    const j = await r.json().catch(()=>null);
+    if(!r.ok){ const msg = j && j.error ? j.error.code + ": " + j.error.message : r.status; throw new Error(msg); }
+    return j;
+  }
+  async ensureSite(){
+    if(this.siteId) return;
+    const s = await this.g("/sites/root");
+    this.siteId = s.id;
+  }
+  async findList(name){
+    const r = await this.g(`/sites/${this.siteId}/lists?$filter=displayName eq '${name}'`);
+    return (r.value && r.value[0]) || null;
+  }
+  async ensureLists(create=false){
+    await this.ensureSite();
+    const missing = [];
+    for(const key of Object.keys(LISTS)){
+      if(this.listIds[key]) continue;
+      const def = LISTS[key];
+      let l = await this.findList(def.name);
+      if(!l && create){
+        l = await this.g(`/sites/${this.siteId}/lists`, { method:"POST", body: JSON.stringify({
+          displayName: def.name, list: { template: "genericList" },
+          columns: def.cols,
+        })});
+      }
+      if(l) this.listIds[key] = l.id; else missing.push(def.name);
+    }
+    return missing;
+  }
+  async items(key){
+    const out = [];
+    let url = `/sites/${this.siteId}/lists/${this.listIds[key]}/items?expand=fields&$top=500`;
+    while(url){
+      const r = await this.g(url);
+      out.push(...(r.value||[]));
+      url = r["@odata.nextLink"] ? r["@odata.nextLink"].replace("https://graph.microsoft.com/v1.0","") : null;
+    }
+    return out;
+  }
+  async loadAll(){
+    const missing = await this.ensureLists(false);
+    if(missing.length) { S.needsSetup = true; S.employees=[];S.projects=[];S.tasks=[];S.progress=[]; return; }
+    S.needsSetup = false;
+    const [e,p,t,g] = await Promise.all([this.items("employees"), this.items("projects"), this.items("tasks"), this.items("progress")]);
+    S.employees = e.map(x=>({ id:x.id, name:x.fields.Title||"", email:(x.fields.Email||"").toLowerCase(), role:x.fields.Role||"기타",
+      isManager: x.fields.IsManager==="Y", active: x.fields.Active!=="N" }));
+    S.projects = p.map(x=>({ id:x.id, title:x.fields.Title||"", client:x.fields.Client||"", startDate:x.fields.StartDate||"",
+      dueDate:x.fields.DueDate||"", status:x.fields.Status||"진행중", note:x.fields.Note||"" }));
+    S.tasks = t.map(x=>({ id:x.id, projectId:x.fields.ProjectId||"", assigneeEmail:(x.fields.AssigneeEmail||"").toLowerCase(),
+      process:x.fields.Process||"기타", title:x.fields.Title||"", estHours:Number(x.fields.EstHours)||0,
+      percent:Number(x.fields.Percent)||0, tStatus:x.fields.TStatus||"진행중" }));
+    S.progress = g.map(x=>({ id:x.id, taskId:x.fields.TaskId||"", date:x.fields.PDate||"", percent:Number(x.fields.Percent)||0,
+      hours:Number(x.fields.Hours)||0, note:x.fields.Note||"", authorEmail:(x.fields.AuthorEmail||"").toLowerCase() }));
+  }
+  _fields(list, obj){
+    switch(list){
+      case "employees": return { Title:obj.name, Email:obj.email, Role:obj.role, IsManager:obj.isManager?"Y":"N", Active:obj.active===false?"N":"Y" };
+      case "projects":  return { Title:obj.title, Client:obj.client||"", StartDate:obj.startDate||"", DueDate:obj.dueDate||"", Status:obj.status||"진행중", Note:obj.note||"" };
+      case "tasks":     return { Title:obj.title, ProjectId:obj.projectId, AssigneeEmail:obj.assigneeEmail, Process:obj.process, EstHours:obj.estHours||0, Percent:obj.percent||0, TStatus:obj.tStatus||"진행중" };
+      case "progress":  return { Title:(obj.date||"")+" 진행입력", TaskId:obj.taskId, PDate:obj.date, Percent:obj.percent||0, Hours:obj.hours||0, Note:obj.note||"", AuthorEmail:obj.authorEmail };
+    }
+  }
+  _patchFields(list, patch){
+    const map = {
+      employees:{ name:"Title", email:"Email", role:"Role", isManager:"IsManager", active:"Active" },
+      projects:{ title:"Title", client:"Client", startDate:"StartDate", dueDate:"DueDate", status:"Status", note:"Note" },
+      tasks:{ title:"Title", projectId:"ProjectId", assigneeEmail:"AssigneeEmail", process:"Process", estHours:"EstHours", percent:"Percent", tStatus:"TStatus" },
+      progress:{ taskId:"TaskId", date:"PDate", percent:"Percent", hours:"Hours", note:"Note", authorEmail:"AuthorEmail" },
+    }[list];
+    const f = {};
+    for(const k of Object.keys(patch)){
+      if(!(k in map)) continue;
+      let v = patch[k];
+      if(list==="employees" && k==="isManager") v = v ? "Y":"N";
+      if(list==="employees" && k==="active") v = v===false ? "N":"Y";
+      f[map[k]] = v;
+    }
+    return f;
+  }
+  async add(list, obj){
+    await this.ensureLists(false);
+    const r = await this.g(`/sites/${this.siteId}/lists/${this.listIds[list]}/items`, {
+      method:"POST", body: JSON.stringify({ fields: this._fields(list, obj) }) });
+    await this.loadAll();
+    return { ...obj, id: r.id };
+  }
+  async update(list, id, patch){
+    await this.g(`/sites/${this.siteId}/lists/${this.listIds[list]}/items/${id}/fields`, {
+      method:"PATCH", body: JSON.stringify(this._patchFields(list, patch)) });
+    await this.loadAll();
+  }
+  async remove(list, id){
+    await this.g(`/sites/${this.siteId}/lists/${this.listIds[list]}/items/${id}`, { method:"DELETE" });
+    await this.loadAll();
+  }
+  async me(){
+    const u = await this.g("/me");
+    return { name: u.displayName, email: (u.mail || u.userPrincipalName || "").toLowerCase() };
+  }
+  async logout(){ await this.msal.logoutRedirect(); }
+}
+</script>
+<script>
+"use strict";
+/* =========================================================
+   화면 렌더링
+   ========================================================= */
+const ICONS = {
+  dash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="9" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="5.5" rx="1.5"/><rect x="13.5" y="12" width="7.5" height="9" rx="1.5"/><rect x="3" y="15.5" width="7.5" height="5.5" rx="1.5"/></svg>',
+  my: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.6 3.8-5 7-5s5.8 1.4 7 5"/></svg>',
+  proj: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h6l2 2h10v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19V7z"/><path d="M3 7V5.5A1.5 1.5 0 0 1 4.5 4H9l2 2"/></svg>',
+  rep: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>',
+  set: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>',
+};
+const NAV = [
+  { id:"dash", label:"대시보드", icon:"dash" },
+  { id:"my",   label:"내 업무",  icon:"my" },
+  { id:"proj", label:"프로젝트", icon:"proj" },
+  { id:"rep",  label:"리포트",   icon:"rep" },
+  { id:"set",  label:"설정",     icon:"set" },
+];
+
+/* ---------- 집계 ---------- */
+function projTasks(pid){ return S.tasks.filter(t => t.projectId === pid); }
+function projAgg(p){
+  const ts = projTasks(p.id);
+  const est = ts.reduce((a,t)=>a+(t.estHours||0),0);
+  const pct = est>0 ? Math.round(ts.reduce((a,t)=>a+(t.estHours||0)*(t.percent||0),0)/est) : (ts.length? Math.round(ts.reduce((a,t)=>a+t.percent,0)/ts.length):0);
+  const byProc = [];
+  PROCESSES.forEach(pc => {
+    const g = ts.filter(t=>t.process===pc.key);
+    if(!g.length) return;
+    const ge = g.reduce((a,t)=>a+(t.estHours||0),0);
+    const gp = ge>0 ? Math.round(g.reduce((a,t)=>a+(t.estHours||0)*(t.percent||0),0)/ge) : Math.round(g.reduce((a,t)=>a+t.percent,0)/g.length);
+    byProc.push({ process: pc.key, color: pc.color, est: ge, pct: gp,
+      people: [...new Set(g.map(t=>empName(t.assigneeEmail)))].join(", ") });
+  });
+  return { tasks: ts, est, pct, byProc };
+}
+function empName(email){ const e = S.employees.find(x=>x.email===email); return e? e.name : (email||"-").split("@")[0]; }
+function projState(p, agg){
+  if(p.status==="완료") return { cls:"state-done", label:"완료" };
+  if(p.status==="보류") return { cls:"state-hold", label:"보류" };
+  const exp = expectedPct(p);
+  if(exp!==null && agg.pct < exp-10) return { cls:"state-late", label:"지연 ⚠" };
+  return { cls:"state-ok", label:"정상" };
+}
+
+/* ---------- 공통 셸 ---------- */
+function navBtn(n){
+  return `<button class="${S.view===n.id?"on":""}" onclick="A.go('${n.id}')">${ICONS[n.icon]}<span>${n.label}</span></button>`;
+}
+function shell(content){
+  return `
+  <div id="app">
+    <nav class="side">
+      <div class="brand"><span class="logo">W</span>워크플로</div>
+      ${NAV.map(navBtn).join("")}
+      <div style="margin-top:auto" class="muted">${esc(S.me?.name||"")} · ${esc(S.me?.role||"")}</div>
+    </nav>
+    <main>
+      ${S.mode==="demo" ? `<div class="demo-banner"><span>데모 모드 — 예시 데이터입니다. 저장해도 새로고침하면 초기화돼요.</span><button class="linkish" onclick="A.exitDemo()">종료</button></div>`:""}
+      ${content}
+    </main>
+    <nav class="tabbar">${NAV.map(navBtn).join("")}</nav>
+  </div>`;
+}
+function render(){
+  const v = { dash: vDash, my: vMy, proj: vProj, rep: vRep, set: vSet }[S.view] || vDash;
+  $("#root").innerHTML = shell(v());
+}
+
+/* ---------- 대시보드 ---------- */
+function meterHTML(pct, exp, thin){
+  return `<div class="meter${thin?" thin":""}" role="img" aria-label="진행률 ${pct}%">
+    <i style="width:${clamp(pct,0,100)}%"></i>
+    ${exp!==null&&exp!==undefined?`<b class="exp" style="left:${clamp(exp,0,100)}%" title="오늘 기준 예상 ${exp}%"></b>`:""}
+  </div>`;
+}
+function projCard(p){
+  const agg = projAgg(p);
+  const st = projState(p, agg);
+  const exp = p.status==="진행중" ? expectedPct(p) : null;
+  return `<div class="card">
+    <div class="proj-head">
+      <b>${esc(p.title)}</b>
+      <span class="row" style="gap:6px">
+        <span class="chip ${st.cls}">${st.label}</span>
+        <span class="muted">${fmtD(p.startDate)} ~ ${fmtD(p.dueDate)}</span>
+      </span>
+    </div>
+    ${p.client?`<div class="muted" style="margin-top:2px">${esc(p.client)}</div>`:""}
+    <div class="row" style="margin:10px 0 4px;gap:8px">
+      <div style="flex:1">${meterHTML(agg.pct, exp)}</div>
+      <b style="font-size:14px;min-width:40px;text-align:right">${agg.pct}%</b>
+    </div>
+    ${exp!==null?`<div class="muted" style="margin-bottom:6px">오늘 기준 예상 진행 ${exp}% ${agg.pct<exp-10?`<span style="color:var(--serious);font-weight:600">(${exp-agg.pct}%p 뒤처짐)</span>`:agg.pct>=exp?`<span style="color:var(--good-text);font-weight:600">(순조)</span>`:""}</div>`:""}
+    ${agg.byProc.map(b=>`
+      <div class="proc-line">
+        <span class="nm" title="${esc(b.people)}"><span class="sw" style="background:${b.color}"></span>${esc(b.process)}</span>
+        <div class="pbar"><i style="width:${b.pct}%;background:${b.color}"></i></div>
+        <span class="vl">${b.pct}%</span>
+      </div>`).join("")}
+    ${agg.tasks.length===0?`<div class="muted">등록된 업무가 없습니다.</div>`:""}
+    <div class="muted" style="margin-top:8px">참여: ${esc([...new Set(agg.tasks.map(t=>empName(t.assigneeEmail)))].join(", ")||"-")} · 예상 ${agg.est}h</div>
+  </div>`;
+}
+function vDash(){
+  const f = S.dashFilter;
+  let list = S.projects.filter(p => f.status==="전체" ? true : p.status===f.status);
+  if(f.person) list = list.filter(p => projTasks(p.id).some(t=>t.assigneeEmail===f.person));
+  list.sort((a,b)=>(a.dueDate||"9999").localeCompare(b.dueDate||"9999"));
+  const active = S.projects.filter(p=>p.status==="진행중");
+  const late = active.filter(p=>{ const a=projAgg(p); const e=expectedPct(p); return e!==null && a.pct<e-10; });
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+  const wa = weekAgo.toISOString().slice(0,10);
+  const weekEntries = S.progress.filter(g=>g.date>=wa).length;
+  const avg = active.length ? Math.round(active.reduce((a,p)=>a+projAgg(p).pct,0)/active.length) : 0;
+  return `
+  <div class="topbar"><div><h1>대시보드</h1><div class="sub">${todayStr().replace(/-/g,".")} · 전 직원 공유 화면</div></div></div>
+  <div class="tiles">
+    <div class="tile"><div class="lb">진행중 프로젝트</div><div class="vl">${active.length}</div></div>
+    <div class="tile"><div class="lb">지연</div><div class="vl">${late.length}</div><div class="dl ${late.length?"warn":""}">${late.length?"예상 대비 10%p↓":"모두 일정 내"}</div></div>
+    <div class="tile"><div class="lb">평균 진행률</div><div class="vl">${avg}%</div></div>
+    <div class="tile"><div class="lb">최근 7일 입력</div><div class="vl">${weekEntries}<span style="font-size:14px;font-weight:400">건</span></div></div>
+  </div>
+  <div class="filterrow">
+    <span class="seg">${["진행중","전체","완료"].map(s=>`<button class="${f.status===s?"on":""}" onclick="A.dashStatus('${s}')">${s}</button>`).join("")}</span>
+    <select onchange="A.dashPerson(this.value)">
+      <option value="">담당자 전체</option>
+      ${S.employees.filter(e=>e.active).map(e=>`<option value="${esc(e.email)}" ${f.person===e.email?"selected":""}>${esc(e.name)}</option>`).join("")}
+    </select>
+  </div>
+  ${list.length? list.map(projCard).join("") : `<div class="card empty">표시할 프로젝트가 없습니다.</div>`}
+  <div class="card">
+    <h2>공정 범례</h2>
+    <div class="legend">${PROCESSES.slice(0,6).map(p=>`<span><span class="sw" style="background:${p.color}"></span>${p.key}</span>`).join("")}</div>
+  </div>`;
+}
+
+/* ---------- 내 업무 ---------- */
+function taskInputCard(t){
+  const p = S.projects.find(x=>x.id===t.projectId);
+  const hist = S.progress.filter(g=>g.taskId===t.id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  const doneToday = S.progress.some(g=>g.taskId===t.id && g.date===todayStr());
+  return `<div class="taskcard" data-task="${t.id}">
+    <div class="hd">
+      <b>${esc(t.title)}</b>
+      <span class="chip"><span class="dot" style="background:${procColor(t.process)}"></span>${esc(t.process)}</span>
+    </div>
+    <div class="muted">${esc(p?p.title:"(프로젝트 없음)")} · 예상 ${t.estHours}h ${doneToday?`· <span style="color:var(--good-text);font-weight:600">오늘 입력됨 ✓</span>`:""}</div>
+    <div class="row" style="margin-top:10px;gap:12px">
+      <div style="flex:1;min-width:150px">
+        <input type="range" min="0" max="100" step="5" value="${t.percent}" aria-label="진행률"
+          oninput="this.closest('.taskcard').querySelector('.pctv').textContent=this.value+'%'">
+      </div>
+      <b class="pctv" style="min-width:48px;text-align:right;font-size:16px">${t.percent}%</b>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input class="notei" placeholder="메모 (예: 2차 셋업 완료)" style="flex:1;min-width:120px">
+      <input class="hoursi" type="number" min="0" step="0.5" placeholder="시간" title="오늘 투입시간(h)" style="width:76px">
+      <button class="btn sm" onclick="A.saveProgress('${t.id}', this)">저장</button>
+    </div>
+    ${hist.length?`<details class="sect"><summary>최근 입력 ${hist.length}건</summary>
+      <table class="tv"><thead><tr><th>날짜</th><th>진행률</th><th>시간</th><th>메모</th></tr></thead><tbody>
+      ${hist.map(h=>`<tr><td>${fmtD(h.date)}</td><td>${h.percent}%</td><td>${h.hours||"-"}</td><td>${esc(h.note||"")}</td></tr>`).join("")}
+      </tbody></table></details>`:""}
+  </div>`;
+}
+function vMy(){
+  const my = S.tasks.filter(t=>t.assigneeEmail===S.me.email);
+  const open = my.filter(t=>t.tStatus!=="완료");
+  const done = my.filter(t=>t.tStatus==="완료");
+  const byProj = {};
+  open.forEach(t=>{ (byProj[t.projectId] = byProj[t.projectId]||[]).push(t); });
+  return `
+  <div class="topbar"><div><h1>내 업무</h1><div class="sub">${esc(S.me.name)} · ${esc(S.me.role)} — 본인 업무만 입력·수정할 수 있어요</div></div></div>
+  ${open.length===0?`<div class="card empty">진행 중인 업무가 없습니다.<br>관리자가 업무를 배정하면 여기에 표시됩니다.</div>`:""}
+  ${Object.keys(byProj).map(pid=>{
+    const p = S.projects.find(x=>x.id===pid);
+    return `<div class="card"><h2>${esc(p?p.title:"기타")} <span class="muted">${p?fmtD(p.dueDate)+" 마감":""}</span></h2>
+      ${byProj[pid].map(taskInputCard).join("")}</div>`;
+  }).join("")}
+  ${done.length?`<div class="card"><details class="sect"><summary>완료된 업무 ${done.length}건</summary>
+    <table class="tv"><thead><tr><th>업무</th><th>프로젝트</th><th>예상(h)</th></tr></thead><tbody>
+    ${done.map(t=>{const p=S.projects.find(x=>x.id===t.projectId);return `<tr><td>${esc(t.title)}</td><td>${esc(p?p.title:"-")}</td><td>${t.estHours}</td></tr>`;}).join("")}
+    </tbody></table></details></div>`:""}`;
+}
+</script>
+<script>
+"use strict";
+/* ---------- 프로젝트 관리 ---------- */
+function vProj(){
+  const mgr = S.me.isManager;
+  const list = [...S.projects].sort((a,b)=>(a.status==="진행중"?0:1)-(b.status==="진행중"?0:1) || (a.dueDate||"").localeCompare(b.dueDate||""));
+  return `
+  <div class="topbar"><div><h1>프로젝트</h1><div class="sub">${mgr?"프로젝트·업무 등록 및 배정":"전체 프로젝트 열람"}</div></div>
+    ${mgr?`<button class="btn" onclick="A.projForm()">+ 새 프로젝트</button>`:""}</div>
+  ${list.length===0?`<div class="card empty">아직 프로젝트가 없습니다.${mgr?"<br>'+ 새 프로젝트'로 시작하세요.":""}</div>`:""}
+  ${list.map(p=>{
+    const agg = projAgg(p); const st = projState(p, agg);
+    return `<div class="card">
+      <div class="proj-head">
+        <b>${esc(p.title)}</b>
+        <span class="row" style="gap:6px">
+          <span class="chip ${st.cls}">${st.label}</span>
+          ${mgr?`<button class="btn sm ghost" onclick="A.projForm('${p.id}')">수정</button>
+                 <button class="btn sm ghost" onclick="A.taskForm(null,'${p.id}')">+ 업무</button>`:""}
+        </span>
+      </div>
+      <div class="muted">${esc(p.client||"")} ${p.client?"·":""} ${fmtD(p.startDate)} ~ ${fmtD(p.dueDate)} · 진행 ${agg.pct}% · 예상 ${agg.est}h</div>
+      ${p.note?`<div class="small" style="margin-top:4px">${esc(p.note)}</div>`:""}
+      ${agg.tasks.length?`<div class="tv-wrap" style="margin-top:10px"><table class="tv">
+        <thead><tr><th>공정</th><th>업무</th><th>담당</th><th>예상(h)</th><th style="min-width:110px">진행률</th>${mgr?"<th></th>":""}</tr></thead>
+        <tbody>${agg.tasks.map(t=>`<tr>
+          <td><span class="chip"><span class="dot" style="background:${procColor(t.process)}"></span>${esc(t.process)}</span></td>
+          <td>${esc(t.title)}</td>
+          <td>${esc(empName(t.assigneeEmail))}</td>
+          <td>${t.estHours}</td>
+          <td><div class="row" style="gap:6px;flex-wrap:nowrap"><div class="meter thin" style="flex:1;min-width:60px"><i style="width:${t.percent}%"></i></div><span class="small" style="min-width:34px;text-align:right">${t.percent}%</span></div></td>
+          ${mgr?`<td><button class="linkish" onclick="A.taskForm('${t.id}')">수정</button></td>`:""}
+        </tr>`).join("")}</tbody></table></div>`:`<div class="muted" style="margin-top:8px">등록된 업무 없음</div>`}
+    </div>`;
+  }).join("")}`;
+}
+
+/* ---------- 연간 리포트 ---------- */
+function yearOf(d){ return d ? Number(d.slice(0,4)) : null; }
+function vRep(){
+  const Y = S.reportYear;
+  const nowY = new Date().getFullYear();
+  const inYear = p => {
+    const s = yearOf(p.startDate), e = yearOf(p.dueDate);
+    if(s===null && e===null) return projTasks(p.id).some(t=>S.progress.some(g=>g.taskId===t.id && yearOf(g.date)===Y));
+    return (s??e)<=Y && (e??s)>=Y;
+  };
+  const pjs = S.projects.filter(inYear);
+  const prY = S.progress.filter(g=>yearOf(g.date)===Y);
+  const totalH = Math.round(prY.reduce((a,g)=>a+(g.hours||0),0)*10)/10;
+  const people = S.employees.filter(e=>e.active);
+  const hoursBy = people.map(e=>({ e, h: Math.round(prY.filter(g=>g.authorEmail===e.email).reduce((a,g)=>a+(g.hours||0),0)*10)/10 }))
+                        .sort((a,b)=>b.h-a.h);
+  const maxH = Math.max(1, ...hoursBy.map(x=>x.h));
+  /* 간트 */
+  const yStart = new Date(Y,0,1), yEnd = new Date(Y,11,31);
+  const span = (yEnd - yStart) / 86400000;
+  const posPct = d => clamp((new Date(d) - yStart)/86400000 / span * 100, 0, 100);
+  const today = new Date();
+  const gantt = pjs.map(p=>{
+    const agg = projAgg(p);
+    const s = p.startDate ? posPct(p.startDate) : 0;
+    const e = p.dueDate ? posPct(p.dueDate) : 100;
+    return `<div class="g-row"><span class="nm" title="${esc(p.title)}">${esc(p.title)}</span>
+      <div class="g-track"><div class="g-grid">${'<i></i>'.repeat(12)}</div>
+        <div class="g-bar" style="left:${s}%;width:${Math.max(e-s,1)}%" title="${esc(p.title)} ${agg.pct}%"><i style="width:${agg.pct}%"></i></div>
+        ${today.getFullYear()===Y?`<div class="g-today" style="left:${posPct(todayStr())}%"></div>`:""}
+      </div></div>`;
+  }).join("");
+  return `
+  <div class="topbar"><div><h1>연간 리포트</h1><div class="sub">한 해 동안의 프로젝트·투입 현황</div></div>
+    <span class="seg">${[nowY-2,nowY-1,nowY].map(y=>`<button class="${Y===y?"on":""}" onclick="A.repYear(${y})">${y}</button>`).join("")}</span>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="lb">${Y}년 프로젝트</div><div class="vl">${pjs.length}</div></div>
+    <div class="tile"><div class="lb">완료</div><div class="vl">${pjs.filter(p=>p.status==="완료").length}</div></div>
+    <div class="tile"><div class="lb">기록된 투입시간</div><div class="vl">${totalH}<span style="font-size:14px;font-weight:400">h</span></div></div>
+    <div class="tile"><div class="lb">참여 인원</div><div class="vl">${hoursBy.filter(x=>x.h>0).length}</div></div>
+  </div>
+  <div class="card">
+    <h2>프로젝트 타임라인 <span class="muted">${Y}년 · 채움 = 진행률${today.getFullYear()===Y?" · 붉은 선 = 오늘":""}</span></h2>
+    <div class="gantt"><div class="gantt-inner">
+      <div class="g-axis">${Array.from({length:12},(_,i)=>`<span>&nbsp;${i+1}월</span>`).join("")}</div>
+      ${gantt || `<div class="empty">해당 연도 프로젝트가 없습니다.</div>`}
+    </div></div>
+  </div>
+  <div class="card">
+    <h2>직원별 투입시간 <span class="muted">${Y}년 입력 기준</span></h2>
+    ${hoursBy.every(x=>x.h===0)?`<div class="empty">기록된 투입시간이 없습니다.</div>`:
+      hoursBy.map(x=>`<div class="barrow">
+        <span class="nm">${esc(x.e.name)} <span class="muted">· ${esc(x.e.role)}</span></span>
+        <div class="hbar"><i style="width:${x.h/maxH*100}%"></i></div>
+        <span class="vl">${x.h}h</span></div>`).join("")}
+  </div>
+  <div class="card">
+    <h2>직원별 수행 업무 <span class="muted">${Y}년</span></h2>
+    ${people.map(e=>{
+      const ts = S.tasks.filter(t=>t.assigneeEmail===e.email && (
+        prY.some(g=>g.taskId===t.id) || (S.projects.find(p=>p.id===t.projectId && inYear(p)))));
+      if(!ts.length) return "";
+      return `<details class="sect"><summary><b>${esc(e.name)}</b> · ${esc(e.role)} — ${ts.length}건, ${ts.reduce((a,t)=>a+t.estHours,0)}h</summary>
+        <table class="tv"><thead><tr><th>프로젝트</th><th>업무</th><th>예상(h)</th><th>진행률</th></tr></thead><tbody>
+        ${ts.map(t=>{const p=S.projects.find(x=>x.id===t.projectId);
+          return `<tr><td>${esc(p?p.title:"-")}</td><td>${esc(t.title)}</td><td>${t.estHours}</td><td>${t.percent}%</td></tr>`;}).join("")}
+        </tbody></table></details>`;
+    }).join("") || `<div class="empty">데이터가 없습니다.</div>`}
+  </div>
+  <div class="card">
+    <h2>표로 보기 <button class="btn sm ghost" style="float:right" onclick="A.toggleRepTable()">${S.reportTable?"숨기기":"펼치기"}</button></h2>
+    ${S.reportTable?`<div class="tv-wrap"><table class="tv">
+      <thead><tr><th>프로젝트</th><th>거래처</th><th>기간</th><th>상태</th><th>진행률</th><th>예상(h)</th></tr></thead><tbody>
+      ${pjs.map(p=>{const a=projAgg(p);return `<tr><td>${esc(p.title)}</td><td>${esc(p.client||"-")}</td><td>${fmtD(p.startDate)}~${fmtD(p.dueDate)}</td><td>${p.status}</td><td>${a.pct}%</td><td>${a.est}</td></tr>`;}).join("")}
+      </tbody></table></div>
+      <div style="margin-top:10px"><button class="btn sm ghost" onclick="A.exportCsv()">CSV 내려받기</button></div>`:`<div class="muted">모든 수치를 표 형태로 확인할 수 있습니다.</div>`}
+  </div>`;
+}
+
+/* ---------- 설정 ---------- */
+function vSet(){
+  const mgr = S.me.isManager;
+  const theme = localStorage.getItem("wf_theme") || "system";
+  return `
+  <div class="topbar"><div><h1>설정</h1></div></div>
+  <div class="card">
+    <h2>내 정보</h2>
+    <div class="small">${esc(S.me.name)} · ${esc(S.me.role)}${S.me.isManager?` · <span class="chip">관리자</span>`:""}</div>
+    <div class="muted">${esc(S.me.email)} · ${S.mode==="demo"?"데모 모드":"Microsoft 365 연결됨"}</div>
+  </div>
+  <div class="card">
+    <h2>화면 테마</h2>
+    <span class="seg">${[["system","시스템"],["light","라이트"],["dark","다크"]].map(([v,l])=>`<button class="${theme===v?"on":""}" onclick="A.setTheme('${v}')">${l}</button>`).join("")}</span>
+  </div>
+  ${mgr?`<div class="card">
+    <h2>직원 관리 <button class="btn sm" style="float:right" onclick="A.empForm()">+ 직원 추가</button></h2>
+    <table class="tv"><thead><tr><th>이름</th><th>공정/직무</th><th>이메일</th><th></th></tr></thead><tbody>
+    ${S.employees.map(e=>`<tr style="${e.active?"":"opacity:.5"}">
+      <td>${esc(e.name)}${e.isManager?` <span class="chip" style="font-size:10.5px">관리자</span>`:""}</td>
+      <td><span class="chip"><span class="dot" style="background:${procColor(e.role)}"></span>${esc(e.role)}</span></td>
+      <td class="small">${esc(e.email)}</td>
+      <td><button class="linkish" onclick="A.empForm('${e.id}')">수정</button></td></tr>`).join("")}
+    </tbody></table>
+    <div class="muted" style="margin-top:8px">직원은 회사 M365 계정 이메일로 자동 매칭됩니다. 퇴사자는 '비활성'으로 바꾸면 목록에서 숨겨집니다.</div>
+  </div>`:""}
+  ${S.mode==="graph"?`<div class="card">
+    <h2>연결</h2>
+    <div class="row">
+      <button class="btn sm ghost" onclick="A.copySetupLink()">직원용 설정 링크 복사</button>
+      <button class="btn sm ghost" onclick="A.reloadAll()">데이터 새로고침</button>
+      <button class="btn sm danger" onclick="A.disconnect()">로그아웃/연결 해제</button>
+    </div>
+    <div class="muted" style="margin-top:8px">설정 링크를 직원에게 보내면, 링크를 한 번 여는 것만으로 접속 설정이 끝납니다.</div>
+  </div>`:""}
+  <div class="card"><div class="muted">워크플로 현황판 v1.0 · 데이터는 ${S.mode==="demo"?"이 브라우저 안에만":"회사 SharePoint에"} 저장됩니다.</div></div>`;
+}
+
+/* ---------- 모달 ---------- */
+function openModal(html){
+  const bg = document.createElement("div");
+  bg.className = "modal-bg";
+  bg.innerHTML = `<div class="modal">${html}</div>`;
+  bg.addEventListener("click", e=>{ if(e.target===bg) bg.remove(); });
+  document.body.appendChild(bg);
+  return bg;
+}
+function fld(name, label, input){ return `<div><label for="f_${name}">${label}</label>${input}</div>`; }
+</script>
+<script>
+"use strict";
+/* =========================================================
+   동작(Actions) + 시작 화면 + 부트스트랩
+   ========================================================= */
+async function busy(fn, msg){
+  if(S.loading) return;
+  S.loading = true;
+  try{ await fn(); }
+  catch(e){ console.error(e); toast("오류: " + (e.message||e), 4200); }
+  finally{ S.loading = false; render(); }
+}
+
+const A = {
+  go(v){ S.view = v; render(); window.scrollTo(0,0); },
+  dashStatus(s){ S.dashFilter.status = s; render(); },
+  dashPerson(p){ S.dashFilter.person = p; render(); },
+  repYear(y){ S.reportYear = y; render(); },
+  toggleRepTable(){ S.reportTable = !S.reportTable; render(); },
+  setTheme(v){
+    localStorage.setItem("wf_theme", v);
+    if(v==="system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", v);
+    render();
+  },
+  exitDemo(){ location.href = location.pathname; },
+  async reloadAll(){ await busy(async()=>{ await S.store.loadAll(); toast("새로고침 완료"); }); },
+  copySetupLink(){
+    const l = setupLink();
+    (navigator.clipboard ? navigator.clipboard.writeText(l) : Promise.reject())
+      .then(()=>toast("설정 링크를 복사했습니다. 직원에게 보내주세요."))
+      .catch(()=>{ prompt("아래 링크를 복사해 직원에게 보내주세요:", l); });
+  },
+  disconnect(){
+    if(!confirm("로그아웃하고 이 기기의 연결 설정을 지울까요?\n(SharePoint의 데이터는 그대로 남습니다)")) return;
+    clearCfg();
+    if(S.store && S.store.logout) S.store.logout(); else location.reload();
+  },
+
+  /* ----- 진행률 입력 (본인 업무만) ----- */
+  async saveProgress(taskId, btn){
+    const t = S.tasks.find(x=>x.id===taskId);
+    if(!t) return;
+    if(t.assigneeEmail !== S.me.email && !S.me.isManager){ toast("본인 업무만 입력할 수 있습니다."); return; }
+    const card = btn.closest(".taskcard");
+    const pct = Number(card.querySelector("input[type=range]").value);
+    const note = card.querySelector(".notei").value.trim();
+    const hours = Number(card.querySelector(".hoursi").value) || 0;
+    await busy(async()=>{
+      const exist = S.progress.find(g=>g.taskId===taskId && g.date===todayStr() && g.authorEmail===S.me.email);
+      if(exist) await S.store.update("progress", exist.id, { percent: pct, note, hours });
+      else await S.store.add("progress", { taskId, date: todayStr(), percent: pct, note, hours, authorEmail: S.me.email });
+      await S.store.update("tasks", taskId, { percent: pct, tStatus: pct>=100 ? "완료" : (pct>0?"진행중":t.tStatus) });
+      toast("저장했습니다 ✓");
+    });
+  },
+
+  /* ----- 프로젝트 폼 ----- */
+  projForm(id){
+    if(!S.me.isManager) return;
+    const p = id ? S.projects.find(x=>x.id===id) : { title:"", client:"", startDate:todayStr(), dueDate:"", status:"진행중", note:"" };
+    const bg = openModal(`
+      <h3>${id?"프로젝트 수정":"새 프로젝트"}</h3>
+      <div class="frm">
+        ${fld("t","프로젝트명 *",`<input id="f_t" value="${esc(p.title)}" placeholder="예: 티타늄 픽스처 양산">`)}
+        ${fld("c","거래처/구분",`<input id="f_c" value="${esc(p.client)}">`)}
+        <div class="two">
+          ${fld("s","시작일",`<input id="f_s" type="date" value="${p.startDate}">`)}
+          ${fld("d","목표 완료일",`<input id="f_d" type="date" value="${p.dueDate}">`)}
+        </div>
+        ${fld("st","상태",`<select id="f_st">${PROJECT_STATUS.map(s=>`<option ${p.status===s?"selected":""}>${s}</option>`).join("")}</select>`)}
+        ${fld("n","메모",`<textarea id="f_n" rows="2">${esc(p.note)}</textarea>`)}
+      </div>
+      <div class="acts">
+        ${id?`<button class="btn sm danger" id="f_del" style="margin-right:auto">삭제</button>`:""}
+        <button class="btn ghost" id="f_cancel">취소</button>
+        <button class="btn" id="f_save">저장</button>
+      </div>`);
+    $("#f_cancel",bg).onclick = ()=>bg.remove();
+    if(id) $("#f_del",bg).onclick = async()=>{
+      if(!confirm("프로젝트와 소속 업무가 모두 삭제됩니다. 계속할까요?")) return;
+      bg.remove();
+      await busy(async()=>{
+        for(const t of projTasks(id)) await S.store.remove("tasks", t.id);
+        await S.store.remove("projects", id);
+        toast("삭제했습니다");
+      });
+    };
+    $("#f_save",bg).onclick = async()=>{
+      const v = { title:$("#f_t",bg).value.trim(), client:$("#f_c",bg).value.trim(),
+        startDate:$("#f_s",bg).value, dueDate:$("#f_d",bg).value, status:$("#f_st",bg).value, note:$("#f_n",bg).value.trim() };
+      if(!v.title){ toast("프로젝트명을 입력하세요"); return; }
+      bg.remove();
+      await busy(async()=>{
+        if(id) await S.store.update("projects", id, v);
+        else await S.store.add("projects", v);
+        toast("저장했습니다 ✓");
+      });
+    };
+  },
+
+  /* ----- 업무 폼 ----- */
+  taskForm(id, projectId){
+    if(!S.me.isManager) return;
+    const t = id ? S.tasks.find(x=>x.id===id)
+                 : { projectId: projectId||S.projects[0]?.id, title:"", process:PROCESSES[0].key, assigneeEmail:S.employees[0]?.email||"", estHours:8, percent:0, tStatus:"진행중" };
+    const bg = openModal(`
+      <h3>${id?"업무 수정":"업무 추가"}</h3>
+      <div class="frm">
+        ${fld("p","프로젝트",`<select id="f_p">${S.projects.map(x=>`<option value="${x.id}" ${t.projectId===x.id?"selected":""}>${esc(x.title)}</option>`).join("")}</select>`)}
+        ${fld("t","업무명 *",`<input id="f_t" value="${esc(t.title)}" placeholder="예: 1차 선삭 가공">`)}
+        <div class="two">
+          ${fld("pr","공정",`<select id="f_pr">${PROCESSES.map(x=>`<option ${t.process===x.key?"selected":""}>${x.key}</option>`).join("")}</select>`)}
+          ${fld("a","담당자",`<select id="f_a">${S.employees.filter(e=>e.active).map(e=>`<option value="${esc(e.email)}" ${t.assigneeEmail===e.email?"selected":""}>${esc(e.name)}</option>`).join("")}</select>`)}
+        </div>
+        <div class="two">
+          ${fld("h","예상 시간(h) *",`<input id="f_h" type="number" min="0" step="0.5" value="${t.estHours}">`)}
+          ${fld("pc","현재 진행률(%)",`<input id="f_pc" type="number" min="0" max="100" step="5" value="${t.percent}">`)}
+        </div>
+      </div>
+      <div class="acts">
+        ${id?`<button class="btn sm danger" id="f_del" style="margin-right:auto">삭제</button>`:""}
+        <button class="btn ghost" id="f_cancel">취소</button>
+        <button class="btn" id="f_save">저장</button>
+      </div>`);
+    $("#f_cancel",bg).onclick = ()=>bg.remove();
+    if(id) $("#f_del",bg).onclick = async()=>{
+      if(!confirm("이 업무를 삭제할까요?")) return;
+      bg.remove();
+      await busy(async()=>{ await S.store.remove("tasks", id); toast("삭제했습니다"); });
+    };
+    $("#f_save",bg).onclick = async()=>{
+      const pc = clamp(Number($("#f_pc",bg).value)||0,0,100);
+      const v = { projectId:$("#f_p",bg).value, title:$("#f_t",bg).value.trim(), process:$("#f_pr",bg).value,
+        assigneeEmail:$("#f_a",bg).value, estHours:Number($("#f_h",bg).value)||0, percent:pc,
+        tStatus: pc>=100?"완료":(pc>0?"진행중":"대기") };
+      if(!v.title){ toast("업무명을 입력하세요"); return; }
+      bg.remove();
+      await busy(async()=>{
+        if(id) await S.store.update("tasks", id, v);
+        else await S.store.add("tasks", v);
+        toast("저장했습니다 ✓");
+      });
+    };
+  },
+
+  /* ----- 직원 폼 ----- */
+  empForm(id){
+    if(!S.me.isManager) return;
+    const e = id ? S.employees.find(x=>x.id===id) : { name:"", email:"", role:PROCESSES[0].key, isManager:false, active:true };
+    const bg = openModal(`
+      <h3>${id?"직원 정보 수정":"직원 추가"}</h3>
+      <div class="frm">
+        ${fld("n","이름 *",`<input id="f_n" value="${esc(e.name)}">`)}
+        ${fld("e","M365 이메일 *",`<input id="f_e" type="email" value="${esc(e.email)}" placeholder="hong@회사도메인.com" ${S.mode==="demo"?"":""}>`)}
+        ${fld("r","공정/직무",`<select id="f_r">${PROCESSES.map(x=>`<option ${e.role===x.key?"selected":""}>${x.key}</option>`).join("")}</select>`)}
+        <div class="two">
+          ${fld("m","권한",`<select id="f_m"><option value="N" ${!e.isManager?"selected":""}>일반</option><option value="Y" ${e.isManager?"selected":""}>관리자</option></select>`)}
+          ${fld("ac","상태",`<select id="f_ac"><option value="Y" ${e.active?"selected":""}>재직</option><option value="N" ${!e.active?"selected":""}>비활성</option></select>`)}
+        </div>
+      </div>
+      <div class="acts"><button class="btn ghost" id="f_cancel">취소</button><button class="btn" id="f_save">저장</button></div>`);
+    $("#f_cancel",bg).onclick = ()=>bg.remove();
+    $("#f_save",bg).onclick = async()=>{
+      const v = { name:$("#f_n",bg).value.trim(), email:$("#f_e",bg).value.trim().toLowerCase(),
+        role:$("#f_r",bg).value, isManager:$("#f_m",bg).value==="Y", active:$("#f_ac",bg).value==="Y" };
+      if(!v.name || !v.email){ toast("이름과 이메일을 입력하세요"); return; }
+      bg.remove();
+      await busy(async()=>{
+        if(id) await S.store.update("employees", id, v);
+        else await S.store.add("employees", v);
+        toast("저장했습니다 ✓");
+      });
+    };
+  },
+
+  /* ----- CSV ----- */
+  exportCsv(){
+    const Y = S.reportYear;
+    const rows = [["프로젝트","거래처","기간","상태","공정","업무","담당자","예상(h)","진행률(%)"]];
+    S.projects.forEach(p=>{
+      projTasks(p.id).forEach(t=>{
+        rows.push([p.title,p.client||"",`${p.startDate}~${p.dueDate}`,p.status,t.process,t.title,empName(t.assigneeEmail),t.estHours,t.percent]);
+      });
+    });
+    const csv = "﻿" + rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    a.download = `워크플로_리포트_${Y}.csv`; a.click();
+  },
+};
+
+/* ---------- 시작 화면 ---------- */
+function renderGate(err){
+  $("#root").innerHTML = `<div class="gate"><div class="box">
+    <h1><span class="logo">W</span>워크플로 현황판</h1>
+    <div class="desc">제조 공정별 업무 진행을 팀 전체가 함께 보는 보드입니다.</div>
+    ${err?`<div class="demo-banner" style="background:#fde8e8;color:var(--critical)">${esc(err)}</div>`:""}
+    <div class="frm">
+      <button class="btn" onclick="startConfig()">회사 Microsoft 365로 시작</button>
+      <button class="btn ghost" onclick="startDemo()">데모로 체험하기</button>
+    </div>
+    <hr class="sep">
+    <div class="muted">처음이라면 '데모로 체험하기'로 화면을 먼저 둘러보세요.<br>M365 연결은 관리자 설정(설치 가이드 참고) 후 사용할 수 있습니다.</div>
+  </div></div>`;
+}
+function startConfig(){
+  const c = loadCfg() || { tenantId:"", clientId:"" };
+  $("#root").innerHTML = `<div class="gate"><div class="box">
+    <h1><span class="logo">W</span>M365 연결 설정</h1>
+    <div class="desc">설치 가이드의 '앱 등록'에서 발급받은 두 가지 값을 입력하세요. 직원들은 관리자가 보내주는 '설정 링크'만 열면 됩니다.</div>
+    <div class="frm">
+      <div><label>디렉터리(테넌트) ID</label><input id="cf_t" value="${esc(c.tenantId)}" placeholder="예: a1b2c3d4-..."></div>
+      <div><label>애플리케이션(클라이언트) ID</label><input id="cf_c" value="${esc(c.clientId)}" placeholder="예: e5f6a7b8-..."></div>
+      <button class="btn" onclick="saveConfigAndLogin()">저장하고 로그인</button>
+      <button class="btn ghost" onclick="boot(true)">← 뒤로</button>
+    </div>
+  </div></div>`;
+}
+function saveConfigAndLogin(){
+  const t = $("#cf_t").value.trim(), c = $("#cf_c").value.trim();
+  if(!t || !c){ toast("두 값을 모두 입력하세요"); return; }
+  saveCfg({ tenantId:t, clientId:c });
+  startGraph();
+}
+function renderLoading(msg){
+  $("#root").innerHTML = `<div class="gate"><div class="box" style="text-align:center">
+    <div class="spin"></div><div class="muted" style="margin-top:12px">${esc(msg||"불러오는 중…")}</div></div></div>`;
+}
+function renderSetupNeeded(){
+  $("#root").innerHTML = `<div class="gate"><div class="box">
+    <h1><span class="logo">W</span>초기 설정</h1>
+    <div class="desc">SharePoint에 데이터 목록(WF_Projects 등 4개)이 아직 없습니다.<br>
+    최초 1회, 관리자가 아래 버튼을 눌러 만들어 주세요. 몇 초면 끝납니다.</div>
+    <div class="frm">
+      <button class="btn" onclick="runInitialSetup()">초기 설정 실행 (목록 만들기)</button>
+      <button class="btn ghost" onclick="A.disconnect()">로그아웃</button>
+    </div>
+  </div></div>`;
+}
+async function runInitialSetup(){
+  renderLoading("SharePoint에 목록을 만드는 중…");
+  try{
+    await S.store.ensureLists(true);
+    await S.store.loadAll();
+    if(S.employees.length===0){
+      const meU = await S.store.me();
+      await S.store.add("employees", { name: meU.name, email: meU.email, role: "설계·공정관리", isManager: true, active: true });
+    }
+    await afterLoad();
+    toast("초기 설정 완료! 설정 탭에서 직원을 등록하세요.", 4000);
+  }catch(e){
+    console.error(e);
+    renderGate("초기 설정 실패: " + (e.message||e) + " — 관리자 권한(Sites.ReadWrite.All 동의) 여부를 확인하세요.");
+  }
+}
+function renderNotRegistered(email){
+  $("#root").innerHTML = `<div class="gate"><div class="box">
+    <h1><span class="logo">W</span>등록이 필요해요</h1>
+    <div class="desc"><b>${esc(email)}</b> 계정은 아직 직원 목록에 없습니다.<br>관리자에게 [설정 → 직원 관리]에서 이 이메일로 등록해 달라고 요청하세요.</div>
+    <div class="frm"><button class="btn ghost" onclick="A.disconnect()">다른 계정으로 로그인</button></div>
+  </div></div>`;
+}
+
+/* ---------- 부트스트랩 ---------- */
+async function startDemo(){
+  S.mode = "demo";
+  S.store = new DemoStore();
+  await S.store.loadAll();
+  const mgr = S.employees.find(e=>e.isManager);
+  S.me = { name: mgr.name, email: mgr.email, role: mgr.role, isManager: true };
+  S.view = "dash";
+  render();
+  toast("데모 모드입니다. 관리자 '김공정'으로 접속했어요.", 3600);
+}
+async function startGraph(){
+  if(window.__msalLoadFailed || typeof msal === "undefined"){
+    renderGate("로그인 모듈을 불러오지 못했습니다. 인터넷 연결을 확인하세요."); return;
+  }
+  renderLoading("Microsoft 365 로그인 중…");
+  try{
+    S.mode = "graph";
+    S.store = new GraphStore(loadCfg());
+    const ok = await S.store.init();
+    if(!ok) return; // 로그인 페이지로 이동 중
+    renderLoading("데이터를 불러오는 중…");
+    await S.store.loadAll();
+    await afterLoad();
+  }catch(e){
+    console.error(e);
+    renderGate("연결 실패: " + (e.message||e));
+  }
+}
+async function afterLoad(){
+  if(S.needsSetup){ renderSetupNeeded(); return; }
+  const meU = await S.store.me();
+  let emp = S.employees.find(x=>x.email===meU.email);
+  if(!emp && S.employees.length===0){
+    await S.store.add("employees", { name: meU.name, email: meU.email, role:"설계·공정관리", isManager:true, active:true });
+    emp = S.employees.find(x=>x.email===meU.email);
+  }
+  if(!emp){ renderNotRegistered(meU.email); return; }
+  if(emp.active===false){ renderNotRegistered(meU.email); return; }
+  S.me = { name: emp.name, email: emp.email, role: emp.role, isManager: emp.isManager };
+  S.view = "dash";
+  render();
+}
+function boot(forceGate){
+  const th = localStorage.getItem("wf_theme");
+  if(th && th!=="system") document.documentElement.setAttribute("data-theme", th);
+  const q = new URLSearchParams(location.search);
+  if(forceGate === true){ renderGate(); return; }
+  if(q.has("demo") || location.hash === "#demo"){ startDemo(); return; }
+  if(loadCfg()){ startGraph(); return; }
+  renderGate();
+}
+window.addEventListener("DOMContentLoaded", ()=>{
+  boot();
+  if("serviceWorker" in navigator && location.protocol === "https:"){
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  }
+});
+</script>
+</body>
+</html>
