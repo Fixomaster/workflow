@@ -305,13 +305,13 @@ function clearCfg(){ localStorage.removeItem(CFG_KEY); }
   if(!m) return;
   try{
     const c = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,"+").replace(/_/g,"/")))));
-    if(c.clientId && c.tenantId){ saveCfg({ clientId:c.clientId.trim(), tenantId:c.tenantId.trim() }); }
+    if(c.clientId && c.tenantId){ saveCfg({ clientId:c.clientId.trim(), tenantId:c.tenantId.trim(), siteUrl:(c.siteUrl||"").trim() }); }
     history.replaceState(null,"",location.pathname);
   }catch(e){ console.warn("setup hash parse fail", e); }
 })();
 function setupLink(){
   const c = loadCfg(); if(!c) return "";
-  const b = btoa(unescape(encodeURIComponent(JSON.stringify({clientId:c.clientId, tenantId:c.tenantId}))));
+  const b = btoa(unescape(encodeURIComponent(JSON.stringify({clientId:c.clientId, tenantId:c.tenantId, siteUrl:c.siteUrl||""}))));
   return location.origin + location.pathname + "#setup=" + b;
 }
 
@@ -441,7 +441,14 @@ class GraphStore {
   }
   async ensureSite(){
     if(this.siteId) return;
-    const s = await this.g("/sites/root");
+    let s;
+    if(this.cfg.siteUrl){
+      let u; try{ u = new URL(this.cfg.siteUrl); }catch(e){ throw new Error("SharePoint 사이트 주소 형식이 잘못되었습니다: " + this.cfg.siteUrl); }
+      const path = u.pathname.replace(/\/$/, "");
+      s = await this.g(`/sites/${u.hostname}:${path}`);
+    } else {
+      s = await this.g("/sites/root");
+    }
     this.siteId = s.id;
   }
   async findList(name){
@@ -1105,15 +1112,16 @@ function startConfig(){
     <div class="frm">
       <div><label>디렉터리(테넌트) ID</label><input id="cf_t" value="${esc(c.tenantId)}" placeholder="예: a1b2c3d4-..."></div>
       <div><label>애플리케이션(클라이언트) ID</label><input id="cf_c" value="${esc(c.clientId)}" placeholder="예: e5f6a7b8-..."></div>
+      <div><label>SharePoint 사이트 주소 (선택 — 비우면 기본 사이트)</label><input id="cf_s" value="${esc(c.siteUrl||"")}" placeholder="예: https://회사.sharepoint.com/sites/workflow"></div>
       <button class="btn" onclick="saveConfigAndLogin()">저장하고 로그인</button>
       <button class="btn ghost" onclick="boot(true)">← 뒤로</button>
     </div>
   </div></div>`;
 }
 function saveConfigAndLogin(){
-  const t = $("#cf_t").value.trim(), c = $("#cf_c").value.trim();
-  if(!t || !c){ toast("두 값을 모두 입력하세요"); return; }
-  saveCfg({ tenantId:t, clientId:c });
+  const t = $("#cf_t").value.trim(), c = $("#cf_c").value.trim(), s = $("#cf_s").value.trim();
+  if(!t || !c){ toast("테넌트 ID와 클라이언트 ID를 입력하세요"); return; }
+  saveCfg({ tenantId:t, clientId:c, siteUrl:s });
   startGraph();
 }
 function renderLoading(msg){
@@ -1144,7 +1152,7 @@ async function runInitialSetup(){
     toast("초기 설정 완료! 설정 탭에서 직원을 등록하세요.", 4000);
   }catch(e){
     console.error(e);
-    renderGate("초기 설정 실패: " + (e.message||e) + " — 관리자 권한(Sites.ReadWrite.All 동의) 여부를 확인하세요.");
+    renderGate("초기 설정 실패: " + (e.message||e) + " — 로그인한 계정이 대상 SharePoint 사이트의 '소유자(편집 가능)'인지, 관리자 동의(Sites.ReadWrite.All)가 되어 있는지 확인하세요.");
   }
 }
 function renderNotRegistered(email){
