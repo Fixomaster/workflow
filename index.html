@@ -154,6 +154,24 @@ hr.sep{border:none;border-top:1px solid var(--grid);margin:12px 0}
 .g-bar>i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:0 3px 3px 0}
 .g-today{position:absolute;top:0;bottom:0;width:2px;background:var(--serious);opacity:.7}
 
+/* calendar */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-head b{font-size:16px}
+.cal-nav{display:flex;gap:6px;align-items:center}
+.cal-nav button{border:1px solid var(--baseline);border-radius:8px;padding:4px 11px;font-size:13px;color:var(--ink-2)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-dow{text-align:center;font-size:11px;color:var(--ink-3);padding:2px 0}
+.cal-dow.sun{color:var(--critical)}
+.cal-cell{min-height:58px;background:var(--surface-1);border:1px solid var(--grid);border-radius:8px;padding:3px 4px;cursor:pointer;overflow:hidden}
+@media(min-width:900px){.cal-cell{min-height:76px}}
+.cal-cell.out{opacity:.38}
+.cal-cell.today .d{color:var(--accent-deep);font-weight:700}
+.cal-cell.sel{outline:2px solid var(--accent);outline-offset:-2px}
+.cal-cell .d{font-size:11.5px;color:var(--ink-2)}
+.cal-cell .d.sun{color:var(--critical)}
+.cal-ev{font-size:10px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px;color:var(--ink-2)}
+.cal-ev .dot{width:6px;height:6px;border-radius:50%;flex:none}
+.cal-more{font-size:9.5px;color:var(--ink-3)}
 /* tables */
 table.tv{width:100%;border-collapse:collapse;font-size:13px}
 table.tv th{color:var(--ink-2);font-weight:600;text-align:left;border-bottom:1px solid var(--baseline);padding:6px 8px}
@@ -267,6 +285,16 @@ const MTYPES = [
 const machColor = t => (MTYPES.find(x => x.key === t) || MTYPES[MTYPES.length-1]).color;
 const machById = id => S.machines.find(m => m.id === id);
 const PROJECT_STATUS = ["진행중","완료","보류"];
+const EV_CATS = [
+  { key:"휴가", color:"var(--s5)", rx:/^\[(휴가|연차|반차)\]\s*/ },
+  { key:"외근", color:"var(--s3)", rx:/^\[(외근|출장)\]\s*/ },
+  { key:"회사", color:"var(--s1)", rx:/^\[(회사|행사|회의|납품|교육)\]\s*/ },
+  { key:"기타", color:"var(--ink-3)", rx:null },
+];
+function evCat(subject){
+  for(const c of EV_CATS){ if(c.rx && c.rx.test(subject||"")) return c; }
+  return EV_CATS[EV_CATS.length-1];
+}
 const LISTS = {
   employees: { name: "WF_Employees", cols: [
     { name:"Email", text:{} }, { name:"Role", text:{} }, { name:"IsManager", text:{} }, { name:"Active", text:{} } ] },
@@ -337,6 +365,10 @@ const S = {
   reportYear: new Date().getFullYear(),
   reportTable: false,
   loading: false,
+  calYm: todayStr().slice(0,7),   // "YYYY-MM"
+  calSel: todayStr(),
+  calEvents: null,                // 현재 월 이벤트 캐시
+  calError: null,
 };
 </script>
 <script>
@@ -410,7 +442,23 @@ function makeDemoData(){
 }
 
 class DemoStore {
-  constructor(){ this.d = makeDemoData(); }
+  constructor(){
+    this.d = makeDemoData();
+    const ym = todayStr().slice(0,7);
+    this.events = [
+      { id:"e1", subject:"[휴가] 이밀링 연차", startDate:ym+"-14", endDate:ym+"-14", organizer:"이밀링" },
+      { id:"e2", subject:"[외근] S메디칼 납품 미팅", startDate:ym+"-18", endDate:ym+"-18", organizer:"오영업" },
+      { id:"e3", subject:"[회사] 월례 품질회의", startDate:ym+"-25", endDate:ym+"-25", organizer:"김공정" },
+      { id:"e4", subject:"[휴가] 정검사 여름휴가", startDate:ym+"-20", endDate:ym+"-22", organizer:"정검사" },
+    ];
+  }
+  async calRange(from, to){
+    return this.events.filter(e => e.startDate <= to && e.endDate >= from)
+      .sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  }
+  async calAdd(ev){ this.events.push({ ...ev, id: uid(), organizer: S.me.name }); }
+  async calDelete(id){ this.events = this.events.filter(e=>e.id!==id); }
+  canDeleteEvent(){ return true; }
   async init(){ return true; }
   async loadAll(){
     S.employees = this.d.emp.map(x=>({...x}));
@@ -437,7 +485,7 @@ class GraphStore {
       },
       cache: { cacheLocation: "localStorage" },
     });
-    this.scopes = ["User.Read", "Sites.ReadWrite.All"];
+    this.scopes = ["User.Read", "Sites.ReadWrite.All", "Group.ReadWrite.All"];
     this.account = null; this.siteId = null; this.listIds = {};
   }
   async init(){
@@ -479,7 +527,51 @@ class GraphStore {
       s = await this.g("/sites/root");
     }
     this.siteId = s.id;
+    this.siteObj = s;
   }
+  /* ----- 그룹 캘린더 ----- */
+  async groupId(){
+    if(this.gid !== undefined) return this.gid;
+    const cached = localStorage.getItem("wf_groupId_v1");
+    if(cached){ this.gid = cached; return this.gid; }
+    try{
+      await this.ensureSite();
+      const name = ((this.siteObj && this.siteObj.displayName) || "workflow").replace(/'/g, "''");
+      const r = await this.g(`/groups?$filter=displayName eq '${name}'&$select=id,displayName`);
+      this.gid = (r.value && r.value[0]) ? r.value[0].id : null;
+    }catch(e){ console.warn("group resolve fail", e); this.gid = null; }
+    if(this.gid) localStorage.setItem("wf_groupId_v1", this.gid);
+    return this.gid;
+  }
+  async calRange(from, to){
+    const gid = await this.groupId();
+    if(!gid) throw new Error("팀 그룹(공유 캘린더)을 찾을 수 없습니다");
+    const r = await this.g(`/groups/${gid}/calendarView?startDateTime=${from}T00:00:00&endDateTime=${to}T23:59:59&$top=200`,
+      { headers: { Prefer: 'outlook.timezone="Korea Standard Time"' } });
+    return (r.value||[]).map(ev=>{
+      const sd = (ev.start && ev.start.dateTime || "").slice(0,10);
+      let ed = (ev.end && ev.end.dateTime || "").slice(0,10);
+      if(ev.isAllDay && ed){ const d = new Date(ed); d.setDate(d.getDate()-1); ed = d.toISOString().slice(0,10); }
+      return { id: ev.id, subject: ev.subject||"(제목 없음)", startDate: sd, endDate: ed||sd,
+        organizer: (ev.organizer && ev.organizer.emailAddress && ev.organizer.emailAddress.name) || "",
+        organizerEmail: ((ev.organizer && ev.organizer.emailAddress && ev.organizer.emailAddress.address) || "").toLowerCase() };
+    }).sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  }
+  async calAdd(ev){
+    const gid = await this.groupId();
+    if(!gid) throw new Error("팀 그룹(공유 캘린더)을 찾을 수 없습니다");
+    const nx = new Date(ev.endDate); nx.setDate(nx.getDate()+1);
+    await this.g(`/groups/${gid}/calendar/events`, { method:"POST", body: JSON.stringify({
+      subject: ev.subject, isAllDay: true,
+      start: { dateTime: ev.startDate+"T00:00:00", timeZone: "Korea Standard Time" },
+      end:   { dateTime: nx.toISOString().slice(0,10)+"T00:00:00", timeZone: "Korea Standard Time" },
+    })});
+  }
+  async calDelete(id){
+    const gid = await this.groupId();
+    await this.g(`/groups/${gid}/calendar/events/${encodeURIComponent(id)}`, { method:"DELETE" });
+  }
+  canDeleteEvent(ev){ return S.me.isManager || (ev.organizerEmail && ev.organizerEmail === S.me.email); }
   async findList(name){
     const r = await this.g(`/sites/${this.siteId}/lists?$filter=displayName eq '${name}'`);
     return (r.value && r.value[0]) || null;
@@ -597,10 +689,12 @@ const NAV = [
   { id:"dash", label:"대시보드", icon:"dash" },
   { id:"my",   label:"내 업무",  icon:"my" },
   { id:"mach", label:"장비",     icon:"mach" },
+  { id:"cal",  label:"일정",     icon:"cal" },
   { id:"proj", label:"프로젝트", icon:"proj" },
   { id:"rep",  label:"리포트",   icon:"rep" },
   { id:"set",  label:"설정",     icon:"set" },
 ];
+ICONS.cal = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="8.5" cy="14.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="14.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="14.5" r="1" fill="currentColor" stroke="none"/></svg>';
 
 /* ---------- 집계 ---------- */
 function projTasks(pid){ return S.tasks.filter(t => t.projectId === pid); }
@@ -648,7 +742,7 @@ function shell(content){
   </div>`;
 }
 function render(){
-  const v = { dash: vDash, my: vMy, mach: vMach, proj: vProj, rep: vRep, set: vSet }[S.view] || vDash;
+  const v = { dash: vDash, my: vMy, mach: vMach, cal: vCal, proj: vProj, rep: vRep, set: vSet }[S.view] || vDash;
   $("#root").innerHTML = shell(v());
 }
 
@@ -829,6 +923,70 @@ function vMach(){
     <h2>장비 구분 범례</h2>
     <div class="legend">${MTYPES.slice(0,3).map(t=>`<span><span class="sw" style="background:${t.color}"></span>${t.key}</span>`).join("")}</div>
     <div class="muted" style="margin-top:6px">업무에 장비를 지정하려면 프로젝트 탭에서 업무 수정 시 '장비'를 선택하세요.</div>
+  </div>`;
+}
+
+/* ---------- 공유 일정(캘린더) ---------- */
+function ymLabel(ym){ const [y,m] = ym.split("-"); return `${y}년 ${Number(m)}월`; }
+function vCal(){
+  const ym = S.calYm;
+  const [Y, M] = ym.split("-").map(Number);
+  const first = new Date(Y, M-1, 1);
+  const startDow = first.getDay();
+  const daysInM = new Date(Y, M, 0).getDate();
+  const evs = S.calEvents;
+  const dayEvents = ds => (evs||[]).filter(e => e.startDate <= ds && e.endDate >= ds);
+  const cells = [];
+  for(let i=0; i<startDow; i++){
+    const d = new Date(Y, M-1, i-startDow+1);
+    cells.push({ ds: null, label: d.getDate() });
+  }
+  for(let d=1; d<=daysInM; d++){
+    const ds = `${Y}-${String(M).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    cells.push({ ds, label: d, dow: (startDow + d - 1) % 7 });
+  }
+  const selEvs = dayEvents(S.calSel);
+  return `
+  <div class="topbar"><div><h1>공유 일정</h1><div class="sub">휴가·외근·회사 일정 — 팀 캘린더(M365)와 실시간 동기화</div></div>
+    <button class="btn" onclick="A.eventForm()">+ 일정 추가</button></div>
+  ${S.calError?`<div class="card"><div class="empty">일정을 불러오지 못했습니다.<br><span class="small">${esc(S.calError)}</span><br><br><button class="btn sm ghost" onclick="A.loadCal(true)">다시 시도</button></div></div>`:""}
+  <div class="card">
+    <div class="cal-head">
+      <b>${ymLabel(ym)}</b>
+      <span class="cal-nav">
+        <button onclick="A.calMove(-1)">◀</button>
+        <button onclick="A.calToday()">오늘</button>
+        <button onclick="A.calMove(1)">▶</button>
+      </span>
+    </div>
+    <div class="cal-grid" style="margin-bottom:3px">${["일","월","화","수","목","금","토"].map((d,i)=>`<div class="cal-dow${i===0?" sun":""}">${d}</div>`).join("")}</div>
+    <div class="cal-grid">
+      ${cells.map(c => c.ds ? (()=>{
+        const de = dayEvents(c.ds);
+        return `<div class="cal-cell${c.ds===todayStr()?" today":""}${c.ds===S.calSel?" sel":""}" onclick="A.calSel('${c.ds}')">
+          <div class="d${c.dow===0?" sun":""}">${c.label}</div>
+          ${de.slice(0,3).map(e=>{ const cat = evCat(e.subject);
+            return `<div class="cal-ev"><span class="dot" style="background:${cat.color}"></span>${esc(e.subject.replace(cat.rx||"",""))}</div>`; }).join("")}
+          ${de.length>3?`<div class="cal-more">+${de.length-3}건</div>`:""}
+        </div>`;})() : `<div class="cal-cell out"><div class="d">${c.label}</div></div>`).join("")}
+    </div>
+    <div class="legend" style="margin-top:10px">${EV_CATS.map(c=>`<span><span class="sw" style="background:${c.color}"></span>${c.key}</span>`).join("")}</div>
+    ${evs===null && !S.calError ? `<div class="muted" style="margin-top:8px">일정을 불러오는 중…</div>`:""}
+  </div>
+  <div class="card">
+    <h2>${fmtD(S.calSel)} 일정 <span class="muted">${selEvs.length}건</span></h2>
+    ${selEvs.length ? selEvs.map(e=>{ const cat = evCat(e.subject);
+      return `<div class="row" style="padding:7px 0;border-bottom:1px solid var(--grid);gap:8px">
+        <span class="dot" style="width:9px;height:9px;border-radius:50%;background:${cat.color};flex:none"></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13.5px">${esc(e.subject)}</div>
+          <div class="muted">${fmtD(e.startDate)}${e.endDate!==e.startDate?` ~ ${fmtD(e.endDate)}`:""}${e.organizer?` · ${esc(e.organizer)}`:""}</div>
+        </div>
+        ${S.store.canDeleteEvent(e)?`<button class="linkish" onclick="A.delEvent('${esc(e.id)}')">삭제</button>`:""}
+      </div>`; }).join("") : `<div class="muted">이 날짜에 등록된 일정이 없습니다.</div>`}
+  </div>
+  <div class="card">
+    <div class="muted">이 일정은 회사 M365 팀 캘린더와 같은 것입니다. 폰의 <b>Outlook 앱 → 일정 → workflow 그룹</b>을 켜면 폰 캘린더에서도 똑같이 보고 입력할 수 있습니다.</div>
   </div>`;
 }
 
@@ -1020,7 +1178,69 @@ async function busy(fn, msg){
 }
 
 const A = {
-  go(v){ S.view = v; render(); window.scrollTo(0,0); },
+  go(v){ S.view = v; render(); window.scrollTo(0,0); if(v==="cal" && S.calEvents===null) A.loadCal(); },
+
+  /* ----- 캘린더 ----- */
+  async loadCal(force){
+    if(force===true){ S.calError = null; S.calEvents = null; render(); }
+    const ym = S.calYm;
+    const [Y,M] = ym.split("-").map(Number);
+    const from = `${Y}-${String(M).padStart(2,"0")}-01`;
+    const to = `${Y}-${String(M).padStart(2,"0")}-${String(new Date(Y,M,0).getDate()).padStart(2,"0")}`;
+    try{
+      const evs = await S.store.calRange(from, to);
+      if(S.calYm === ym){ S.calEvents = evs; S.calError = null; }
+    }catch(e){
+      console.error(e);
+      if(S.calYm === ym){ S.calEvents = []; S.calError = e.message||String(e); }
+    }
+    if(S.view==="cal") render();
+  },
+  calMove(dir){
+    const [Y,M] = S.calYm.split("-").map(Number);
+    const d = new Date(Y, M-1+dir, 1);
+    S.calYm = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    S.calSel = S.calYm + "-01";
+    S.calEvents = null; render(); A.loadCal();
+  },
+  calToday(){ S.calYm = todayStr().slice(0,7); S.calSel = todayStr(); S.calEvents = null; render(); A.loadCal(); },
+  calSel(ds){ S.calSel = ds; render(); },
+  eventForm(){
+    const bg = openModal(`
+      <h3>일정 추가</h3>
+      <div class="frm">
+        <div class="two">
+          ${fld("c","종류",`<select id="f_c">${EV_CATS.slice(0,3).map(c=>`<option>${c.key}</option>`).join("")}<option>기타</option></select>`)}
+          ${fld("t","내용 *",`<input id="f_t" placeholder="예: ${esc(S.me.name)} 연차 / 거래처 방문">`)}
+        </div>
+        <div class="two">
+          ${fld("s","시작일",`<input id="f_s" type="date" value="${S.calSel}">`)}
+          ${fld("e","종료일",`<input id="f_e" type="date" value="${S.calSel}">`)}
+        </div>
+        <div class="muted">저장하면 팀 공유 캘린더(M365)에 등록되어 전 직원과 Outlook에서 함께 보입니다.</div>
+      </div>
+      <div class="acts"><button class="btn ghost" id="f_cancel">취소</button><button class="btn" id="f_save">저장</button></div>`);
+    $("#f_cancel",bg).onclick = ()=>bg.remove();
+    $("#f_save",bg).onclick = async()=>{
+      const cat = $("#f_c",bg).value, txt = $("#f_t",bg).value.trim();
+      let s = $("#f_s",bg).value, e = $("#f_e",bg).value || s;
+      if(!txt){ toast("내용을 입력하세요"); return; }
+      if(!s){ toast("시작일을 선택하세요"); return; }
+      if(e < s){ const tmp = s; s = e; e = tmp; }
+      bg.remove();
+      await busy(async()=>{
+        await S.store.calAdd({ subject: (cat==="기타"?"":`[${cat}] `) + txt, startDate: s, endDate: e });
+        toast("일정을 등록했습니다 ✓");
+        S.calEvents = null;
+      });
+      A.loadCal();
+    };
+  },
+  async delEvent(id){
+    if(!confirm("이 일정을 삭제할까요? (팀 캘린더에서도 삭제됩니다)")) return;
+    await busy(async()=>{ await S.store.calDelete(id); toast("삭제했습니다"); S.calEvents = null; });
+    A.loadCal();
+  },
   dashStatus(s){ S.dashFilter.status = s; render(); },
   dashPerson(p){ S.dashFilter.person = p; render(); },
   repYear(y){ S.reportYear = y; render(); },
