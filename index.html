@@ -334,7 +334,13 @@ function expectedPct(p){
 
 /* ---------- 설정 저장 ---------- */
 const CFG_KEY = "wf_config_v1";
-function loadCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)) || null; }catch(e){ return null; } }
+/* 회사 기본 접속 설정 — 주소만 입력해도 바로 로그인 가능 */
+const DEFAULT_CFG = {
+  tenantId: "1e1bc284-2917-4396-82ba-440ac159cd0b",
+  clientId: "7abca6fc-f18f-47d6-b2ac-f6d79bc0f184",
+  siteUrl: "https://glkcompany.sharepoint.com/sites/workflow",
+};
+function loadCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)) || DEFAULT_CFG; }catch(e){ return DEFAULT_CFG; } }
 function saveCfg(c){ localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
 function clearCfg(){ localStorage.removeItem(CFG_KEY); }
 
